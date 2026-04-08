@@ -152,6 +152,9 @@ app_state = {
     "bot_active":       False,       # Agent Power Kill switch (Auto Run)
     "consecutive_losses": 0,          # Circuit breaker counter
     "circuit_breaker_until": 0,       # timestamp hasta que se reactiva
+    "startup_warmup_until": 0,        # timestamp: warm-up de 5 min antes de la 1ra compra
+    "warmup_done": False,             # ¿ya pasó el warm-up inicial?
+    "min_positions_floor": 7,         # Mínimo de posiciones; modo agresivo si cae abajo
     "brain_stats": {
         "buys": 0,
         "rejects": 0,
@@ -220,6 +223,66 @@ async def engine_loop():
                 app_state["next_scan_at"] = time.time() + 5
                 await asyncio.sleep(5)
                 continue
+
+            # ══════════════════════════════════════════════════════════
+            #  🌡️ WARM-UP PHASE: 5 MINUTOS DE ANÁLISIS ANTES DE COMPRAR
+            # ══════════════════════════════════════════════════════════
+            # La primera vez que bot_active se pone en True, arrancamos el timer
+            if not app_state["warmup_done"] and app_state["startup_warmup_until"] == 0:
+                warmup_secs = 300  # 5 minutos
+                app_state["startup_warmup_until"] = time.time() + warmup_secs
+                add_log(
+                    f"🌡️ WARM-UP INICIADO — Analizando mercado durante {warmup_secs//60} minutos "
+                    f"antes de la primera entrada. El scanner está activo.",
+                    "info"
+                )
+                add_brain_event("🌡️ Warm-up: 5 minutos de lectura del mercado antes de operar", "info")
+                await notify_telegram(
+                    f"🌡️ <b>Warm-up Iniciado</b>\n"
+                    f"El agente analizará el mercado durante <b>5 minutos</b> antes de "
+                    f"abrir su primera posición.\n"
+                    f"⏳ Primera compra estimada: {(datetime.now() + __import__('datetime').timedelta(seconds=warmup_secs)).strftime('%H:%M:%S')}"
+                )
+
+            # ── Verificar si el warm-up ya terminó ──
+            warmup_remaining = app_state["startup_warmup_until"] - time.time()
+            still_warming = (not app_state["warmup_done"]) and (warmup_remaining > 0)
+
+            if still_warming:
+                # Cada 60 segundos logueamos el progreso
+                mins_left = int(warmup_remaining // 60) + 1
+                secs_left = int(warmup_remaining % 60)
+                if int(warmup_remaining) % 60 < SCAN_INTERVAL:
+                    add_log(
+                        f"🌡️ Warm-up: {mins_left}m {secs_left}s restantes — "
+                        f"Escaneando y construyendo perfil de mercado...",
+                        "info"
+                    )
+            elif not app_state["warmup_done"] and warmup_remaining <= 0:
+                # Warm-up recién completado → armar primera oleada de entradas
+                app_state["warmup_done"] = True
+                add_log("✅ Warm-up completado — Abriendo primera oleada de posiciones (objetivo: 15)", "info")
+                add_brain_event("🚀 Warm-up finalizado: iniciando primera oleada de entradas", "buy")
+                await notify_telegram(
+                    "🚀 <b>Warm-up Completado</b>\n"
+                    "El agente terminó de analizar el mercado.\n"
+                    "⚡ Abriendo primera oleada de <b>15 posiciones</b> ahora."
+                )
+
+            # ── Min Positions Floor: modo agresivo si < 7 entradas abiertas ──
+            active_len_pre = len(app_state["active_trades"])
+            MIN_FLOOR = app_state.get("min_positions_floor", 7)
+            below_floor = app_state["warmup_done"] and (active_len_pre < MIN_FLOOR)
+            if below_floor:
+                add_log(
+                    f"⚠️ Posiciones activas ({active_len_pre}) por debajo del mínimo ({MIN_FLOOR}) "
+                    f"— Modo AGRESIVO de reentrada activado",
+                    "warn"
+                )
+                add_brain_event(
+                    f"⚡ Floor breach: {active_len_pre}/{MIN_FLOOR} — bajando umbrales de score",
+                    "signal"
+                )
 
             # ── Reset diario ──
             if now.day != last_reset_day:
@@ -304,10 +367,17 @@ async def engine_loop():
                         "scores": scores,
                     })
 
-                    if scores["total"] < BC_MIN_SCORE:
+                    # ── 🌡️ WARM-UP GATE: bloquear compras hasta completar análisis inicial ──
+                    if still_warming:
+                        add_brain_event(f"🌡️ Warm-up: {token.get('symbol','?')} identificado pero en esp...espera", "info")
                         continue
 
-                    # ── 🤖 ML PREDICTOR GATE ──
+                    # ── Score mínimo (relajado si estamos por debajo del floor de posiciones) ──
+                    effective_bc_min = BC_MIN_SCORE * (0.80 if below_floor else 1.0)
+                    if scores["total"] < effective_bc_min:
+                        continue
+
+                    # ── 🤖 ML PREDICTOR GATE (relajado en floor mode) ──
                     ml_prob = predict_trade_probability(
                         rsi=0, macd=0,
                         tf_score=scores["total"],
@@ -316,7 +386,8 @@ async def engine_loop():
                         bb_width=0, bb_position=0.5
                     )
                     scores["ml_prob"] = ml_prob
-                    if ml_prob < 0.50:
+                    ml_threshold = 0.40 if below_floor else 0.50  # Más permisivo si floor breach
+                    if ml_prob < ml_threshold:
                         add_brain_event(
                             f"🤖 ML rechazó 💎{token.get('symbol','?')} "
                             f"(prob={ml_prob:.0%}, score={scores['total']:.0f})",
@@ -467,12 +538,22 @@ async def engine_loop():
                             "scores": scores,
                         })
 
-                    if scores["momentum"] < SN_MIN_MOMENTUM or scores["safety"] < SN_MIN_SAFETY or scores["total"] < SN_MIN_SCORE:
+                    # ── 🌡️ WARM-UP GATE: bloquear compras hasta completar análisis inicial ──
+                    if still_warming:
+                        add_brain_event(f"🌡️ Warm-up: 🔫{token.get('symbol','?')} identificado, en espera", "info")
+                        continue
+
+                    # ── Umbrales dinámicos (se relajan si estamos por debajo del floor) ──
+                    eff_momentum = SN_MIN_MOMENTUM * (0.80 if below_floor else 1.0)
+                    eff_safety   = SN_MIN_SAFETY   * (0.80 if below_floor else 1.0)
+                    eff_score    = SN_MIN_SCORE    * (0.80 if below_floor else 1.0)
+
+                    if scores["momentum"] < eff_momentum or scores["safety"] < eff_safety or scores["total"] < eff_score:
                         if scores["total"] >= SN_MIN_SCORE - 10:
                             add_brain_event(f"🧠 Rechazo Score: {token.get('symbol','?')} (Score {scores['total']:.0f} < {SN_MIN_SCORE})", "reject")
                         continue
 
-                    # ── 🤖 ML PREDICTOR GATE ──
+                    # ── 🤖 ML PREDICTOR GATE (relajado en floor mode) ──
                     ml_prob = predict_trade_probability(
                         rsi=0, macd=0,
                         tf_score=scores["total"],
@@ -481,7 +562,8 @@ async def engine_loop():
                         bb_width=0, bb_position=0.5
                     )
                     scores["ml_prob"] = ml_prob
-                    if ml_prob < 0.50:
+                    ml_threshold = 0.40 if below_floor else 0.50
+                    if ml_prob < ml_threshold:
                         add_brain_event(
                             f"🤖 ML rechazó 🔫{token.get('symbol','?')} "
                             f"(prob={ml_prob:.0%}, score={scores['total']:.0f})",
@@ -1320,12 +1402,16 @@ async def get_state(request: Request):
 
     # ── AI Module Status ──
     kelly_frac = calculate_kelly_fraction()
+    warmup_remaining = max(0, app_state.get("startup_warmup_until", 0) - time.time())
     state_copy["ai"] = {
         "ml_model_exists": os.path.exists(ML_MODEL_PATH),
         "kelly_fraction": round(kelly_frac, 4) if kelly_frac else None,
         "sentiment_risk_mod": get_risk_modifier(),
         "consecutive_losses": app_state.get("consecutive_losses", 0),
         "circuit_breaker_active": app_state.get("circuit_breaker_until", 0) > time.time(),
+        "warmup_done": app_state.get("warmup_done", True),
+        "warmup_remaining_secs": int(warmup_remaining),
+        "min_positions_floor": app_state.get("min_positions_floor", 7),
     }
 
     # ── Clones state for dashboard ──
@@ -1380,7 +1466,17 @@ async def get_equity(request: Request, agent: str = "main"):
 @app.post("/api/toggle_bot")
 @limiter.limit("15/minute")
 async def toggle_bot(request: Request):
-    app_state["bot_active"] = not app_state.get("bot_active", False)
+    was_active = app_state.get("bot_active", False)
+    app_state["bot_active"] = not was_active
+    
+    # Si el bot se está encendiendo (OFF → ON): reset warm-up para nuevo ciclo de análisis
+    if not was_active and app_state["bot_active"]:
+        app_state["warmup_done"] = False
+        app_state["startup_warmup_until"] = 0
+        add_log("🔄 Bot encendido — iniciando warm-up de 5 minutos", "info")
+    elif was_active and not app_state["bot_active"]:
+        add_log("⏹ Bot apagado manualmente", "info")
+
     return {"status": "ok", "bot_active": app_state["bot_active"]}
 
 @app.get("/api/regime")

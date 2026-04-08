@@ -2690,7 +2690,21 @@ async function fetchState(){
     const pBtn = document.getElementById('bot-power-btn');
     const pDot = document.getElementById('bot-power-dot');
     const pTxt = document.getElementById('bot-power-text');
-    if(d.bot_active) {
+    const aiData = d.ai || {};
+    const warmupDone = aiData.warmup_done !== false; // default true if missing
+    const warmupSecs = aiData.warmup_remaining_secs || 0;
+
+    if(d.bot_active && !warmupDone && warmupSecs > 0) {
+        // 🌡️ WARM-UP STATE: ámbar con countdown
+        pBtn.style.background = 'rgba(240,185,11,0.12)';
+        pBtn.style.borderColor = 'rgba(240,185,11,0.5)';
+        pBtn.style.color = '#f0b90b';
+        pDot.style.background = '#f0b90b';
+        pDot.style.boxShadow = '0 0 8px #f0b90b';
+        const wm = Math.floor(warmupSecs / 60);
+        const ws = warmupSecs % 60;
+        pTxt.innerText = `🌡️ ANÁLISIS ${wm}:${String(ws).padStart(2,'0')}`;
+    } else if(d.bot_active) {
         pBtn.style.background = 'rgba(14,203,129,0.1)';
         pBtn.style.borderColor = 'rgba(14,203,129,0.4)';
         pBtn.style.color = '#0ecb81';

@@ -1838,7 +1838,10 @@ function renderPositions(trades, skipFilter){
     return `<tr onclick="openChartModal('${tr.symbol}',${tr.entry},${tr.sl},${tp_val},'${ts_val}')" style="cursor:pointer" class="${flashClsBg}">
       <td><div class="pair-cell" style="gap:12px;">
         <div class="anim-target-icon">◈</div>
-        <div class="pair-name" style="font-size:15px; font-weight:600;">${sym}/USDC</div>
+        <div class="pair-name" style="font-size:15px; font-weight:600; display:flex; align-items:center; gap:8px;">
+            ${sym}/USDC 
+            ${tr.direction === 'SHORT' ? '<span style="background:rgba(239, 68, 68, 0.2); border: 1px solid var(--red); color:var(--red); font-size:10px; padding:2px 6px; border-radius:4px; font-weight:700; letter-spacing:0.05em">' + (tr.leverage||1) + 'x SHORT</span>' : ''}
+        </div>
       </div></td>
       <td style="font-family:var(--mono); text-align:right">$${fmt(tr.entry)}</td>
       <td style="font-family:var(--mono); text-align:right" class="${c}"><span class="${flashClsTxt}">$${fmt(cp)}</span></td>

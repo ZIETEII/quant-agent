@@ -320,9 +320,8 @@ class JupiterClient:
             log.warning(f"[JUPITER QUOTE] Error: {e}")
             return {}
 
-    async def _paper_buy(self, token_mint: str, usd_amount: float, slippage_bps: int) -> dict:
-        """
-        Paper Buy con cotización REAL de Jupiter.
+    async def _paper_buy(self, token_mint: str, usd_amount: float, slippage_bps: int, direction: str = "LONG", leverage: float = 1.0) -> dict:
+        """Paper Buy/Short con cotización REAL de Jupiter v6.
         Usa /v6/quote para obtener el outAmount exacto (con price impact, fees del protocolo
         y routing óptimo real) sin ejecutar ninguna transacción on-chain.
         El resultado es matemáticamente idéntico a lo que daría un swap real.
@@ -404,12 +403,16 @@ class JupiterClient:
                 "qty": total_qty,
                 "avg_entry_usd": avg_entry,
                 "avg_entry_sol": avg_entry / sol_usd if sol_usd > 0 else 0,
+                "pos_type": direction,
+                "leverage": leverage
             }
         else:
             self.paper_holdings[token_mint] = {
                 "qty": qty,
                 "avg_entry_usd": effective_price_usd,
                 "avg_entry_sol": effective_price_usd / sol_usd if sol_usd > 0 else 0,
+                "pos_type": direction,
+                "leverage": leverage
             }
 
         return {
@@ -627,11 +630,34 @@ class JupiterClient:
         if hasattr(self, 'paper_balance_sol_gas'):
             self.paper_balance_sol_gas = max(0, self.paper_balance_sol_gas - gas_fee_sol)
 
-        # ── PnL real basado en lo que realmente se gastaró vs. lo que se recibe ──
+        # ── PnL real basado en lo que realmente se gastó vs. lo que se recibe ──
         # usd_spent original está en el trade como usd_spent, aquí lo calculamos desde holding
-        cost_basis = entry_usd * sell_qty  # USD que costó esta cantidad de tokens
-        pnl_usd = usd_received - cost_basis
-        pnl_pct = (pnl_usd / cost_basis * 100) if cost_basis > 0 else 0
+        cost_basis = entry_usd * sell_qty  # Margen USD inicial (o costo si es LONG)
+        
+        pos_type = holding.get("pos_type", "LONG")
+        leverage = holding.get("leverage", 1.0)
+
+        if pos_type == "SHORT":
+            # Si Short, PnL = (Precio Entrada - Precio Salida) / Precio Entrada * Tamaño * Apalancamiento
+            price_drop_pct = (entry_usd - price_usd_spot) / entry_usd if entry_usd > 0 else 0
+            # Aproximar usd_received como inverso en lugar de usar outAmount de jupiter
+            # ya que en papel de Perps no hacemos swap.
+            pnl_usd = price_drop_pct * cost_basis * leverage
+            
+            # Reembolso de la venta: Costo Base (Margen original) + Ganancia/Pérdida
+            usd_received = cost_basis + pnl_usd 
+            # Liquidation check: Si Pnl_usd es menor a -cost_basis, se perdió el margen
+            if usd_received < 0:
+                usd_received = 0
+                pnl_usd = -cost_basis
+
+            pnl_pct = (pnl_usd / cost_basis * 100) if cost_basis > 0 else 0
+            log.info(f"[PAPER REPAY │ SHORT] Cerrado: {sell_qty:.6f} tokens | PNL: ${pnl_usd:.2f} ({pnl_pct:.2f}%)")
+
+        else:
+            # Lógica LONG (Spot normal)
+            pnl_usd = usd_received - cost_basis
+            pnl_pct = (pnl_usd / cost_basis * 100) if cost_basis > 0 else 0
 
         # ── Actualizar holdings ──
         holding["qty"] -= sell_qty

@@ -369,14 +369,26 @@ async def engine_loop():
 
                     # ── 🌡️ WARM-UP GATE: bloquear compras hasta completar análisis inicial ──
                     if still_warming:
-                        add_brain_event(f"🌡️ Warm-up: {token.get('symbol','?')} identificado pero en esp...espera", "info")
+                        add_brain_event(f"🌡️ Warm-up: {token.get('symbol','?')} identificado pero en espera", "info")
                         continue
 
-                    # ── Score mínimo (relajado si estamos por debajo del floor de posiciones) ──
+                    # ── Score mínimo & Dirección (LONG/SHORT) ──
                     effective_bc_min = BC_MIN_SCORE * (0.80 if below_floor else 1.0)
-                    if scores["total"] < effective_bc_min:
-                        continue
-
+                    direction = "LONG"
+                    leverage = 1.0
+                    
+                    if scores["total"] >= effective_bc_min:
+                        direction = "LONG"
+                        leverage = 1.0
+                    elif scores["total"] <= 30 and scores["momentum"] <= 30:
+                        direction = "SHORT"
+                        # Dynamic leverage up to 10x based on how bad the score is
+                        # If score is 30 -> 100-30 = 70 / 10 = 7x. If 0 -> 10x.
+                        leverage = max(1.0, min(10.0, float(100 - scores["total"]) / 10.0))
+                        leverage = round(leverage, 1)
+                    else:
+                        continue # No hay convicción para Long ni para Short
+                        
                     # ── 🤖 ML PREDICTOR GATE (relajado en floor mode) ──
                     ml_prob = predict_trade_probability(
                         rsi=0, macd=0,
@@ -386,14 +398,17 @@ async def engine_loop():
                         bb_width=0, bb_position=0.5
                     )
                     scores["ml_prob"] = ml_prob
-                    ml_threshold = 0.40 if below_floor else 0.50  # Más permisivo si floor breach
-                    if ml_prob < ml_threshold:
-                        add_brain_event(
-                            f"🤖 ML rechazó 💎{token.get('symbol','?')} "
-                            f"(prob={ml_prob:.0%}, score={scores['total']:.0f})",
-                            "reject"
-                        )
-                        continue
+                    
+                    if direction == "LONG":
+                        ml_threshold = 0.40 if below_floor else 0.50  # Más permisivo si floor breach
+                        if ml_prob < ml_threshold:
+                            add_brain_event(f"🤖 ML rechazó 💎{token.get('symbol','?')} LONG (prob={ml_prob:.0%}, score={scores['total']:.0f})", "reject")
+                            continue
+                    else: # SHORT
+                        ml_short_threshold = 0.35 if below_floor else 0.25 # Probabilidad ultra baja para confirmar caída
+                        if ml_prob > ml_short_threshold:
+                            add_brain_event(f"🤖 ML rechazó 💎{token.get('symbol','?')} SHORT (prob={ml_prob:.0%} no es bajar suficiente)", "reject")
+                            continue
 
                     price_usd = token.get("price_usd", 0)
                     if price_usd <= 0:
@@ -430,10 +445,18 @@ async def engine_loop():
                         add_brain_event(f"🛡️ Rechazo Liquidez: Trade > 2.5% del pool ({token.get('symbol','?')})", "reject")
                         continue
 
-                    result = await exchange.swap_buy(mint, risk_usd, BC_SLIPPAGE)
+                    result = await exchange.swap_buy(mint, risk_usd, BC_SLIPPAGE, direction=direction, leverage=leverage)
                     if not result["success"]:
-                        add_log(f"❌ Bluechip compra fallida: {token.get('symbol','?')} — {result.get('error','')}", "warn")
+                        add_log(f"❌ Bluechip {direction} fallido: {token.get('symbol','?')} — {result.get('error','')}", "warn")
                         continue
+
+                    # Invertir la lógica de SL y TP si es una posición SHORT
+                    if direction == "SHORT":
+                        sl_price = result["price_usd"] * (1 + BC_STOP_LOSS / 100)
+                        tp_price = result["price_usd"] * (1 - BC_TAKE_PROFIT / 100)
+                    else:
+                        sl_price = result["price_usd"] * (1 - BC_STOP_LOSS / 100)
+                        tp_price = result["price_usd"] * (1 + BC_TAKE_PROFIT / 100)
 
                     new_trade = {
                         "mint": mint,
@@ -448,8 +471,8 @@ async def engine_loop():
                         "trailing_pct": BC_TRAILING,
                         "dead_trade_min": BC_DEAD_MIN,
                         "moonbag_pct": 0,
-                        "sl_price": result["price_usd"] * (1 - BC_STOP_LOSS / 100),
-                        "tp_price": result["price_usd"] * (1 + BC_TAKE_PROFIT / 100),
+                        "sl_price": sl_price,
+                        "tp_price": tp_price,
                         "highest_price": result["price_usd"],
                         "trailing_active": False,
                         "current_price": result["price_usd"],
@@ -460,11 +483,13 @@ async def engine_loop():
                         "source": "bluechip",
                         "scores": scores,
                         "tx_hash": result.get("tx_hash", ""),
-                        "type": "BUY",
-                        "symbol_display": f"💎{token.get('symbol', '?')}",
+                        "type": "SHORT" if direction == "SHORT" else "BUY",
+                        "direction": direction,
+                        "leverage": leverage,
+                        "symbol_display": f"💎{token.get('symbol', '?')} {direction} {leverage}x" if direction == "SHORT" else f"💎{token.get('symbol', '?')}",
                         "entry": result["price_usd"],
-                        "sl": result["price_usd"] * (1 - BC_STOP_LOSS / 100),
-                        "tp2": result["price_usd"] * (1 + BC_TAKE_PROFIT / 100),
+                        "sl": sl_price,
+                        "tp2": tp_price,
                     }
 
                     app_state["active_trades"].append(new_trade)
@@ -924,27 +949,50 @@ async def update_live_prices():
                 trade["current_price"] = current_price
                 entry = trade["entry_usd"]
                 
+                # Cargar dirección de operativa (LONG/SHORT) y Margen
+                pos_type = trade.get("direction", "LONG")
+                leverage = trade.get("leverage", 1.0)
+                usd_margin = trade.get("usd_spent") # Cost basis o Margen en USD
+                
                 # Cálculo de PnL preciso usando costo real USD (contemplando slippage)
-                usd_spent = trade.get("usd_spent")
-                if usd_spent is not None and usd_spent > 0:
-                    current_value = current_price * trade["qty"]
-                    pnl_usd = current_value - usd_spent
-                    pnl_pct = (pnl_usd / usd_spent) * 100
+                if usd_margin is not None and usd_margin > 0:
+                    if pos_type == "SHORT":
+                        # PNL = (Entry - Current) / Entry * Leverage * Margin
+                        price_drop_pct = (entry - current_price) / entry if entry > 0 else 0
+                        pnl_usd = price_drop_pct * usd_margin * leverage
+                        pnl_pct = (pnl_usd / usd_margin) * 100
+                    else:
+                        current_value = current_price * trade["qty"]
+                        pnl_usd = current_value - usd_margin
+                        pnl_pct = (pnl_usd / usd_margin) * 100
                 else:
-                    pnl_pct = ((current_price - entry) / entry * 100) if entry > 0 else 0
-                    pnl_usd = (current_price - entry) * trade["qty"]
+                    if pos_type == "SHORT":
+                        pnl_pct = ((entry - current_price) / entry * 100 * leverage) if entry > 0 else 0
+                        pnl_usd = (pnl_pct / 100) * (trade.get("qty", 0) * entry)
+                    else:
+                        pnl_pct = ((current_price - entry) / entry * 100) if entry > 0 else 0
+                        pnl_usd = (current_price - entry) * trade["qty"]
 
                 trade["pnl"] = round(pnl_usd, 6)
                 trade["pnl_pct"] = round(pnl_pct, 2)
                 total_unrealized += pnl_usd
 
-                # Actualizar highest price para trailing
-                if current_price > trade.get("highest_price", entry):
-                    trade["highest_price"] = current_price
+                # Actualizar highest/lowest price para trailing
+                if pos_type == "SHORT":
+                    # En short, el mayor beneficio es el menor precio histórico (lowest)
+                    if current_price < trade.get("highest_price", entry):
+                        trade["highest_price"] = current_price
+                else:
+                    if current_price > trade.get("highest_price", entry):
+                        trade["highest_price"] = current_price
 
-                # Actualizar SL y TP display
-                trade["sl"] = trade.get("sl_price", entry * (1 - trade.get("sl_pct", 12) / 100))
-                trade["tp2"] = trade.get("tp_price", entry * (1 + trade.get("tp_pct", 25) / 100))
+                # Actualizar SL y TP display (matemática separada en su creación, no la tocamos, pero si no tienen usamos fallback)
+                if pos_type == "SHORT":
+                    trade["sl"] = trade.get("sl_price", entry * (1 + trade.get("sl_pct", 12) / 100))
+                    trade["tp2"] = trade.get("tp_price", entry * (1 - trade.get("tp_pct", 25) / 100))
+                else:
+                    trade["sl"] = trade.get("sl_price", entry * (1 - trade.get("sl_pct", 12) / 100))
+                    trade["tp2"] = trade.get("tp_price", entry * (1 + trade.get("tp_pct", 25) / 100))
 
                 # ── CHECK: STOP LOSS ──
                 if pnl_pct <= -trade.get("sl_pct", 12):
@@ -956,14 +1004,18 @@ async def update_live_prices():
                     if not trade.get("tp_hit", False):
                         trade["tp_hit"] = True
                         trade["trailing_active"] = True
-                        # Activar trailing stop desde este punto
                         trade["trailing_from"] = current_price
                         add_log(f"🎯 TP Hit: {trade['symbol']} +{pnl_pct:.1f}% — Trailing activado", "info")
 
                 # ── CHECK: TRAILING STOP (después del TP) ──
                 if trade.get("trailing_active", False):
-                    highest = trade.get("highest_price", entry)
-                    drop_from_high = ((highest - current_price) / highest * 100) if highest > 0 else 0
+                    peak_price = trade.get("highest_price", entry)
+                    if pos_type == "SHORT":
+                        # El precio rebotó hacia ARRIBA desde el mínimo (pérdida de ganancia)
+                        drop_from_high = ((current_price - peak_price) / peak_price * 100) if peak_price > 0 else 0
+                    else:
+                        drop_from_high = ((peak_price - current_price) / peak_price * 100) if peak_price > 0 else 0
+                        
                     if drop_from_high >= trade.get("trailing_pct", 8):
                         trades_to_close.append((trade, "TRAILING_STOP", current_price, pnl_usd, pnl_pct))
                         continue

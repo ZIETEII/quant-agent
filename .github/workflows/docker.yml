@@ -1,4 +1,4 @@
-name: Construir y Subir Imagen Docker
+name: Build → Push → Deploy
 
 on:
   push:
@@ -8,16 +8,17 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  IMAGE_FULL: ghcr.io/zieteii/quant-agent
 
 jobs:
-  build-and-push-image:
+  build-push-deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
 
     steps:
-      - name: Descargar Código
+      - name: Checkout código
         uses: actions/checkout@v4
 
       - name: Login en GitHub Container Registry
@@ -27,28 +28,52 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extraer metadata para Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-
-      - name: Compilar y Subir Imagen
+      - name: Build + Push imagen (latest + sha)
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ghcr.io/zieteii/quant-agent:latest
-          labels: ${{ steps.meta.outputs.labels }}
+          # Dos tags: latest Y sha único → fuerza Portainer a detectar cambio
+          tags: |
+            ${{ env.IMAGE_FULL }}:latest
+            ${{ env.IMAGE_FULL }}:${{ github.sha }}
 
-      - name: Desplegar en Portainer automáticamente
+      - name: Desplegar via Portainer webhook
         env:
           PORTAINER_WEBHOOK: ${{ secrets.PORTAINER_WEBHOOK }}
         run: |
           if [ -z "$PORTAINER_WEBHOOK" ]; then
-            echo "Aviso: No se configuró el secreto PORTAINER_WEBHOOK en Github. Saltando despliegue automático..."
+            echo "⚠️  PORTAINER_WEBHOOK no configurado — saltando deploy automático"
+            exit 0
+          fi
+
+          echo "📡 Enviando señal de deploy a Portainer..."
+          HTTP_STATUS=$(curl -s -o /tmp/portainer_resp.txt -w "%{http_code}" \
+            -X POST "$PORTAINER_WEBHOOK" \
+            --max-time 30)
+
+          echo "   → HTTP Status: $HTTP_STATUS"
+          echo "   → Respuesta:   $(cat /tmp/portainer_resp.txt)"
+
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "✅ Portainer aceptó el deploy"
           else
-            echo "Notificando a Portainer para hacer el Pull & Redeploy..."
-            curl -X POST "$PORTAINER_WEBHOOK"
-            echo -e "\n¡Actualización enviada a Portainer!"
+            echo "❌ Portainer respondió con error $HTTP_STATUS"
+            exit 1
+          fi
+
+      - name: Esperar y verificar deploy
+        run: |
+          echo "⏳ Esperando 40s para que el contenedor reinicie..."
+          sleep 40
+
+          echo "🔍 Verificando salud del bot..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 15 \
+            https://quant.logvox.com/api/state || echo "000")
+
+          if [ "$STATUS" = "200" ] || [ "$STATUS" = "401" ] || [ "$STATUS" = "302" ]; then
+            echo "✅ Bot respondiendo (HTTP $STATUS)"
+          else
+            echo "⚠️  Bot no responde aún (HTTP $STATUS) — puede estar iniciando"
           fi

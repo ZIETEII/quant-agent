@@ -20,7 +20,6 @@ services:
       # ── Trading Mode ──
       - PAPER_TRADING_MODE=True           # ✅ Simulación con precios reales / sin txs
       - SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
-      - DATABASE_URL=${DATABASE_URL}
       # ── Telegram ──
       - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
@@ -54,6 +53,13 @@ services:
       - SN_MOONBAG=${SN_MOONBAG:-0.20}
       - SN_DEAD_MINUTES=${SN_DEAD_MINUTES:-5}
       - SNIPER_MAX_AGE_MIN=${SNIPER_MAX_AGE_MIN:-60}
+      # ── Supabase VPS (logvoxNet interno) ──
+      - SUPABASE_URL=${SUPABASE_URL:-http://kong:8000}
+      - SUPABASE_PUBLIC_URL=${SUPABASE_PUBLIC_URL:-https://xxsupabase.logvox.com}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
+      - DATABASE_URL=${DATABASE_URL}
     networks:
       - logvoxNet
     healthcheck:

@@ -1386,6 +1386,153 @@ async def serve_sw():
 async def serve_manifest():
     return FileResponse("static/manifest.json", media_type="application/json")
 
+# ══════════════════════════════════════════════════════════
+#  🔐 AUTH — Supabase VPS
+# ══════════════════════════════════════════════════════════
+try:
+    from db.supabase_client import (
+        sign_in, sign_out, get_user, get_profile,
+        get_profile_by_id, list_all_profiles,
+        add_funds as sb_add_funds, get_fund_history,
+        health_check as sb_health_check
+    )
+    SUPABASE_AVAILABLE = True
+    log.info("✅ Supabase client cargado")
+except Exception as _e:
+    SUPABASE_AVAILABLE = False
+    log.warning(f"⚠️ Supabase client no disponible: {_e}")
+
+@app.post("/api/auth/login")
+@limiter.limit("10/minute")
+async def auth_login(request: Request):
+    """Login con email + contraseña. Retorna access_token + perfil."""
+    if not SUPABASE_AVAILABLE:
+        return {"error": "Supabase no disponible", "success": False}
+    body = await request.json()
+    email    = body.get("email", "")
+    password = body.get("password", "")
+    if not email or not password:
+        return {"error": "Email y contraseña requeridos", "success": False}
+
+    result = await sign_in(email, password)
+    if result.get("error"):
+        return {"error": result["error"], "success": False}
+
+    # Obtener perfil del usuario
+    profile = None
+    if result.get("access_token"):
+        profile = await get_profile(result["access_token"])
+
+    return {
+        "success":       True,
+        "access_token":  result.get("access_token"),
+        "refresh_token": result.get("refresh_token"),
+        "expires_in":    result.get("expires_in"),
+        "user":          result.get("user"),
+        "profile":       profile,
+    }
+
+@app.post("/api/auth/logout")
+@limiter.limit("20/minute")
+async def auth_logout(request: Request):
+    """Invalida el token de sesión."""
+    if not SUPABASE_AVAILABLE:
+        return {"success": True}
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.replace("Bearer ", "").strip()
+    if token:
+        await sign_out(token)
+    return {"success": True}
+
+@app.get("/api/auth/me")
+@limiter.limit("60/minute")
+async def auth_me(request: Request):
+    """Retorna el usuario + perfil del token actual."""
+    if not SUPABASE_AVAILABLE:
+        return {"error": "Supabase no disponible"}
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.replace("Bearer ", "").strip()
+    if not token:
+        return {"error": "Token requerido", "authenticated": False}
+
+    user = await get_user(token)
+    if not user:
+        return {"error": "Token inválido o expirado", "authenticated": False}
+
+    profile = await get_profile(token)
+    return {"authenticated": True, "user": user, "profile": profile}
+
+@app.get("/api/auth/profile")
+@limiter.limit("30/minute")
+async def auth_profile(request: Request):
+    """Perfil completo del usuario autenticado."""
+    if not SUPABASE_AVAILABLE:
+        return {"error": "Supabase no disponible"}
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.replace("Bearer ", "").strip()
+    if not token:
+        return {"error": "No autenticado"}
+    profile = await get_profile(token)
+    if not profile:
+        return {"error": "Perfil no encontrado"}
+    return {"success": True, "profile": profile}
+
+@app.post("/api/auth/add_funds")
+@limiter.limit("10/minute")
+async def auth_add_funds(request: Request):
+    """Agrega fondos virtuales al usuario (solo admin)."""
+    if not SUPABASE_AVAILABLE:
+        return {"error": "Supabase no disponible"}
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.replace("Bearer ", "").strip()
+    if not token:
+        return {"error": "No autenticado"}
+
+    user = await get_user(token)
+    if not user:
+        return {"error": "Token inválido"}
+
+    body = await request.json()
+    user_id = body.get("user_id", user.get("id"))
+    amount  = float(body.get("amount", 0))
+    note    = body.get("note", "Depósito manual")
+
+    if amount <= 0:
+        return {"error": "Monto debe ser mayor a 0"}
+
+    result = await sb_add_funds(user_id, amount, note)
+    if result is None:
+        return {"error": "No se pudo agregar fondos"}
+
+    return {"success": True, "profile": result}
+
+@app.get("/api/auth/fund_history")
+@limiter.limit("20/minute")
+async def auth_fund_history(request: Request):
+    """Historial de transacciones del usuario autenticado."""
+    if not SUPABASE_AVAILABLE:
+        return {"error": "Supabase no disponible", "transactions": []}
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.replace("Bearer ", "").strip()
+    if not token:
+        return {"error": "No autenticado", "transactions": []}
+
+    user = await get_user(token)
+    if not user:
+        return {"error": "Token inválido", "transactions": []}
+
+    history = await get_fund_history(user.get("id"), limit=50)
+    return {"success": True, "transactions": history}
+
+@app.get("/api/supabase/health")
+@limiter.limit("10/minute")
+async def supabase_health(request: Request):
+    """Verifica conectividad al Supabase VPS."""
+    if not SUPABASE_AVAILABLE:
+        return {"ok": False, "reason": "cliente no inicializado"}
+    ok = await sb_health_check()
+    return {"ok": ok, "supabase_url": os.getenv("SUPABASE_URL", "not set")}
+
 @app.get("/api/state")
 @limiter.limit("120/minute")
 async def get_state(request: Request):

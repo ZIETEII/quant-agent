@@ -9,8 +9,7 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
-    env_file:
-      - .env
+
     environment:
       - PAPER_MODE=False  # ¡ADVERTENCIA: False significa LIVE TRADING con capital real!
       # Conexión directa a la base de datos Postgres del stack de Supabase (ORION)

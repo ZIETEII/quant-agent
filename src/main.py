@@ -415,11 +415,14 @@ async def engine_loop():
                         "info"
                     )
                     await notify_telegram(
-                        f"💎 <b>COMPRA BLUECHIP — {token.get('symbol','?')}</b>\n"
-                        f"💰 Precio: <b>${price_usd:.6f}</b>\n"
-                        f"📊 Score: {scores['total']:.0f}\n"
-                        f"🎯 TP: +{BC_TAKE_PROFIT}% | SL: -{BC_STOP_LOSS}%\n"
-                        f"📦 Cost: ${result.get('usd_spent', risk_usd):.2f} USDC"
+                        f"💎 <b>𝗔𝗖𝗤𝗨𝗜𝗦𝗜𝗧𝗜𝗢𝗡: 𝗕𝗟𝗨𝗘𝗖𝗛𝗜𝗣</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━\n"
+                        f"🎫 Token:  <b>${token.get('symbol','?')}</b>\n"
+                        f"💰 Precio: <code>${price_usd:.6f}</code>\n"
+                        f"📈 Score:  <b>{scores['total']:.0f}/100</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━\n"
+                        f"🎯 TP: <code>+{BC_TAKE_PROFIT}%</code> | 🛑 SL: <code>-{BC_STOP_LOSS}%</code>\n"
+                        f"💼 Costo:  <code>${result.get('usd_spent', risk_usd):.2f} USDC</code>"
                     )
 
             # ═══════════════════════════════════════════
@@ -593,11 +596,15 @@ async def engine_loop():
                         "info"
                     )
                     await notify_telegram(
-                        f"🔫 <b>COMPRA SNIPER — {token.get('symbol','?')}</b>\n"
-                        f"💰 Precio: <b>${price_usd:.8f}</b>\n"
-                        f"📊 Score: M:{scores['momentum']:.0f} S:{scores['safety']:.0f} T:{scores['total']:.0f}\n"
-                        f"🎯 TP: +{SN_TAKE_PROFIT}% | SL: -{SN_STOP_LOSS}%\n"
-                        f"🏷️ Source: {new_trade['source']}"
+                        f"🔫 <b>𝗔𝗖𝗤𝗨𝗜𝗦𝗜𝗧𝗜𝗢𝗡: 𝗦𝗡𝗜𝗣𝗘𝗥 / 𝗧𝗥𝗘𝗡𝗗𝗜𝗡𝗚</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━\n"
+                        f"🎫 Token:  <b>${token.get('symbol','?')}</b>\n"
+                        f"💰 Precio: <code>${price_usd:.8f}</code>\n"
+                        f"📈 Score:  <b>{scores['total']:.0f}/100</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━\n"
+                        f"🎯 TP: <code>+{SN_TAKE_PROFIT}%</code> | 🛑 SL: <code>-{SN_STOP_LOSS}%</code>\n"
+                        f"⚡ Riesgo: Kelly/Auto-ajustado\n"
+                        f"🏷️ Fuente: <i>{new_trade['source']}</i>"
                     )
 
             app_state["candidates"] = near_candidates[:10]
@@ -677,6 +684,16 @@ async def engine_loop():
                                 open_mints.add(mint)
                                 db.save_active_trades(app_state["active_trades"])
                                 add_brain_event(f"⚡ COMPRA HOT_TRADE: {sdata['symbol']} iniciada.", "buy")
+                                await notify_telegram(
+                                    f"🔥 <b>𝗔𝗖𝗤𝗨𝗜𝗦𝗜𝗧𝗜𝗢𝗡: 𝗛𝗢𝗧 𝗧𝗥𝗔𝗗𝗘 (𝗖𝗹𝗼𝗻)</b>\n"
+                                    f"━━━━━━━━━━━━━━━━━━\n"
+                                    f"🎫 Token:  <b>${sdata['symbol']}</b>\n"
+                                    f"💰 Precio: <code>${res['price_usd']:.8f}</code>\n"
+                                    f"⚡ Clon:   <i>{sdata['clone_name']}</i> ({sdata['pnl_pct']:.1f}% en {sdata['elapsed_sec']}s)\n"
+                                    f"━━━━━━━━━━━━━━━━━━\n"
+                                    f"🎯 TP: <code>+{SN_TAKE_PROFIT}%</code> | 🛑 SL: <code>-{SN_STOP_LOSS}%</code>\n"
+                                    f"💼 Costo:  <code>${risk_usd:.2f} USDC</code>"
+                                )
 
                     elif stype == "CONVICTION":
                         add_log(
@@ -718,6 +735,16 @@ async def engine_loop():
                                 open_mints.add(mint)
                                 db.save_active_trades(app_state["active_trades"])
                                 add_brain_event(f"🎯 COMPRA CONVICTION: {sdata['symbol']} confirmada por clones.", "buy")
+                                await notify_telegram(
+                                    f"🎯 <b>𝗔𝗖𝗤𝗨𝗜𝗦𝗜𝗧𝗜𝗢𝗡: 𝗘𝗡𝗝𝗔𝗠𝗕𝗥𝗘 𝗖𝗢𝗡𝗩𝗜𝗖𝗧𝗜𝗢𝗡</b>\n"
+                                    f"━━━━━━━━━━━━━━━━━━\n"
+                                    f"🎫 Token:  <b>${sdata['symbol']}</b>\n"
+                                    f"💰 Precio: <code>${res['price_usd']:.8f}</code>\n"
+                                    f"🧠 Swarm:  <b>{sdata['clone_count']} clones</b> confirmaron el trade\n"
+                                    f"━━━━━━━━━━━━━━━━━━\n"
+                                    f"🎯 TP: <code>+{SN_TAKE_PROFIT}%</code> | 🛑 SL: <code>-{SN_STOP_LOSS}%</code>\n"
+                                    f"💼 Costo:  <code>${risk_usd:.2f} USDC</code>"
+                                )
 
                     elif stype == "ALPHA":
                         add_log(
@@ -958,10 +985,14 @@ async def update_live_prices():
                     add_brain_event(f"💰 Cierre {reason_lbl}: {trade['symbol']} ({pnl_pct:+.1f}%)", "close")
                     add_log(f"{reason_lbl} {trade['symbol']} | PnL: ${pnl_usd:+.4f} ({pnl_pct:+.1f}%)", "info" if is_win else "warn")
                     await notify_telegram(
-                        f"{emoji} <b>{reason_lbl} — {trade['symbol']}</b>\n"
-                        f"💰 PnL: <b>${pnl_usd:+.4f} ({pnl_pct:+.1f}%)</b>\n"
-                        f"📊 Entry: ${trade['entry_usd']:.8f} → Exit: ${exit_price:.8f}\n"
-                        f"💼 Balance: ${app_state['balance_usd']:.2f} USDC"
+                        f"{emoji} <b>𝗧𝗥𝗔𝗗𝗘 𝗖𝗟𝗢𝗦𝗘𝗗: {reason_lbl}</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━\n"
+                        f"🎫 Token:  <b>${trade['symbol']}</b>\n"
+                        f"💰 PnL:    <b>${pnl_usd:+.2f} ({pnl_pct:+.1f}%)</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━\n"
+                        f"➡️ Entry: <code>${trade['entry_usd']:.8f}</code>\n"
+                        f"⬅️ Exit:  <code>${exit_price:.8f}</code>\n"
+                        f"💼 Total Equity: <code>${app_state['balance_usd']:.2f} USDC</code>"
                     )
 
                     if sell_pct < 1.0:
@@ -1050,17 +1081,29 @@ async def periodic_report():
             wr = f"{wins/total*100:.1f}%" if total > 0 else "N/A"
             chg = bal_usd - init_usd
 
+            pct_chg = (chg / init_usd * 100) if init_usd > 0 else 0.0
+
             parts = [
-                f"🧠 <b>Informe Diario — Agente Solana</b>",
-                f"⏰ {datetime.now().strftime('%d/%m/%Y  %H:%M:%S')}",
+                f"━━━━━━━━━━━━━━━━━━",
+                f"🌅 <b>𝗥𝗘𝗣𝗢𝗥𝗧𝗘 𝗗𝗜𝗔𝗥𝗜𝗢 - 𝗤𝗨𝗔𝗡𝗧 𝗩𝟮.𝟬</b>",
+                f"📅 <i>{datetime.now().strftime('%d %b, %Y')} | ⏰ 08:00 AM</i>",
+                f"━━━━━━━━━━━━━━━━━━",
                 f"",
-                f"💰 <b>Balance:</b> ${bal_usd:.2f} USDC",
-                f"📈 <b>PnL Total:</b> ${pnl_r:+.4f}",
-                f"🎯 <b>Win Rate:</b> {wr} ({wins}✅ / {total - wins}❌)",
-                f"💼 <b>Posiciones:</b> {len(s.get('active_trades',[]))} abiertas",
+                f"🏦 <b>𝗣𝗢𝗥𝗧𝗔𝗙𝗢𝗟𝗜𝗢 & 𝗘𝗤𝗨𝗜𝗧𝗬</b>",
+                f"💵 Capital Inicial: <code>${init_usd:.2f}</code>",
+                f"💰 Balance Actual: <code>${bal_usd:.2f} USDC</code>",
+                f"📈 <b>Net PnL:</b> <code>${pnl_r:+.4f}</code> ({'+' if pct_chg>=0 else ''}{pct_chg:.1f}%) 🚀",
                 f"",
-                f"📊 <b>Trending:</b> {len(s.get('trending_tokens',[]))} tokens",
-                f"🔫 <b>Sniper:</b> {len(s.get('new_tokens',[]))} nuevos",
+                f"⚔️ <b>𝗥𝗘𝗡𝗗𝗜𝗠𝗜𝗘𝗡𝗧𝗢 (𝗪𝗜𝗡 𝗥𝗔𝗧𝗘)</b>",
+                f"🎯 Tasa de Éxito: <b>{wr}</b>",
+                f"🟢 Ganadoras (Win):  <code>{wins}</code>",
+                f"🔴 Perdedoras (Loss): <code>{total - wins}</code>",
+                f"",
+                f"🗂️ <b>𝗘𝗦𝗧𝗔𝗗𝗢 𝗗𝗘𝗟 𝗠𝗘𝗥𝗖𝗔𝗗𝗢</b>",
+                f"💼 Positions Abiertas: <b>{len(s.get('active_trades',[]))}</b> 💎",
+                f"🚀 Tokens en Radar: <b>{len(s.get('trending_tokens',[]))}</b> 👀",
+                f"━━━━━━━━━━━━━━━━━━",
+                f"⚡️ <i>Autonomía y Precisión M/L.</i>"
             ]
             await notify_telegram("\n".join(parts))
         except Exception as e:

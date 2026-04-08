@@ -1857,6 +1857,23 @@ async def api_inject_capital(request: Request, payload: InjectCapitalReq, userna
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.post("/api/ml/retrain")
+@limiter.limit("5/minute")
+async def api_ml_retrain(request: Request, username: str = Depends(verify_auth)):
+    """
+    Endpoint (Puente de Supabase/Studio) para desencadenar el reentrenamiento del
+    Random Forest Classifier bajo demanda.
+    """
+    try:
+        add_log(f"🧠 [MACHINE LEARNING] Reentrenamiento manual demandado vía Puente Supabase...", "info")
+        model_success = await asyncio.to_thread(train_model)
+        if model_success:
+            return {"status": "ok", "message": "Optimización cualitativa (Random Forest) ejecutada exitosamente con los datasets de DB"}
+        else:
+            return {"status": "error", "message": "Datos insuficientes en DB para re-entrenar"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 
 
 if __name__ == "__main__":

@@ -746,7 +746,9 @@ async def engine_loop():
             await asyncio.sleep(SCAN_INTERVAL)
 
         except Exception as e:
+            import traceback
             log.error(f"Engine loop error: {e}")
+            log.error(traceback.format_exc())
             add_log(f"⚠️ Error en engine: {e}", "warn")
             await asyncio.sleep(5)
 
@@ -1834,6 +1836,9 @@ async def api_inject_capital(request: Request, payload: InjectCapitalReq, userna
                 "cycle_days": 30, "synced_mints": [], "active_trades": []
             }
             clone_state["balance"] = capital
+            clone_state.pop("updated_at", None)
+            clone_state.pop("created_at", None)
+            clone_state.pop("id", None)
             db.save_clone_state(**clone_state)
             
         app_state["bot_active"] = True

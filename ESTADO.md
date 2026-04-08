@@ -19,9 +19,10 @@
 | 💱 Exchange Client | `jupiter_client.py` | ✅ Dual Mode | 95% | Slippage configurado, soporte Live/Paper |
 | 🔍 Token Scanner | `token_scanner.py` | ✅ Triple-Flujo | 95% | Bluechip, Trending y Sniper operativos |
 | 🧬 Clones (3) | `clones/*.py` | ✅ Independientes | 95% | Ninja, Turtle, Trend funcionales. Fixeado el choque de DB por metadata (`updated_at`). |
-| 🤖 ML Predictor | `ai/ml_predictor.py` | ⚠️ Entrenando | 70% | Pendiente de intersección predict->engine |
+| 🤖 ML Predictor | `ai/ml_predictor.py` | ✅ Integrado | 100% | Puente Supabase + Threshold 50% Activo |
+| 📲 Notificaciones | `main.py` | ✅ Integrado | 100% | UI Premium estructurado (Telegram HTML) |
 
-**Total estimado del sistema: ~94% completado.** Alcanzamos madurez de Producción Premium de nivel institucional.
+**Total estimado del sistema: 100% COMPLETADO.** Hemos alcanzado la madurez absoluta de Producción Premium de nivel institucional. Todo el Roadmap está cerrado.
 
 ---
 
@@ -42,41 +43,38 @@ El servidor FastAPI asíncrono mejorado:
 
 ---
 
-## ❌ EL CAMINO AL 100% (Roadmap Pendiente en Vivo)
+## ✅ HOJA DE RUTA 100% COMPLETADA (Roadmap Cerrado)
 
-### 🔴 PRIORIDAD ALTA
+### 1. 🤖 ENGANCHE FINAL DEL CEREBRO MACHINE LEARNING
+**Estado:** ✅ **Completado (Threshold Duro & Retraining API)**.
+- Se ha inyectado el filtro predictivo real en `main.py` antes de las compras. Si `predict_trade_probability() < 0.50`, el bot veta el trade automáticamente.
+- Se implementó el puente de Supabase `POST /api/ml/retrain` para correr Random Forests autoconfigurables nocturnamente.
 
-#### 1. 🤖 ENGANCHE FINAL DEL CEREBRO MACHINE LEARNING
-**Estado:** Modelo entrena en un sandbox pero no filtra de manera estricta los trades diarios.
-**Problema:** `ml_predictor.py` tiene la infraestructura lista pero no estamos invocando la directriz `predict_trade_probability()` en el pipeline caliente de `main.py > should_enter`.
-**Solución:** Mapear en caliente los datos e inyectar un threshold duro (ej. Si AI dice que probabilidad de pérdida > 50%, veto instantáneo).
+### 2. 🔄 GRACEFUL RECOVERY ON-CHAIN
+**Estado:** ✅ **Completado (Memoria Persistente)**.
+- Se corrigió el protocolo destructivo (ahora `/api/inject_capital` ejecuta el Wipe y `engine_loop` simplemente lee). 
+- El bot reconecta y protege las posiciones no documentadas que detecta en la blockchain cuando se reinicia.
 
-#### 2. 🔄 GRACEFUL RECOVERY ON-CHAIN
-**Estado:** No implementado robustamente. Al reiniciar, Cold Start mata la memoria retentiva de la Blockchain.
-**Problema:** Si recargas el agente, olvida que tiene monedas de posiciones abiertas sobre la wallet porque `wipe_all_data` lo quita.
-**Solución:** Escáner al prender motores de liquidez retenida en la address (`HSAeFg7SW2KwVv...`), que re-popule el backend y ponga los stop loss dinámicos.
+### 3. 🎯 AUTO-EJECUCIÓN BURSÁTIL POR SEÑALES CLONADAS
+**Estado:** ✅ **Completado (Auto-Cacería del Enjambre)**.
+- Arreglado el bug crítico contable y de KeyError de Jupiter. El cerebro maestro atrapa las señales Ninja/Trend (`HOT_TRADE`/`CONVICTION`) y auto-compra su fracción de Kelly al instante sin intervención humana.
 
-#### 3. 🎯 AUTO-EJECUCIÓN BURSÁTIL POR SEÑALES CLONADAS
-**Estado:** Únicamente Log visual (Console log).
-**Problema:** Ninja y Trend gritan las entradas, pero Agente maestro ignora ejecutarlas automáticas sin UI.
-**Solución:** Incorporar función autómata explícita.
-
-### 🟡 PRIORIDAD MEDIA
-
-#### 4. 📡 NOTIFICACIONES TÁCTICAS
-- Completar la migración Telegram para logs calientes.
-
-#### 5. 💹 BACKTESTER CUALITATIVO EN VIVO
-- Uso de la Base de datos Supabase ORION para construir datasets masivos durante la noche y exportar Random Forests autoconfigurables por semana.
+### 4. 📡 NOTIFICACIONES TÁCTICAS
+**Estado:** ✅ **Completado (Diseño Premium UI)**.
+- Formateo estético avanzado ("muy lindo") implementado en bloque mediante HTML para Telegram. Notifica entradas de enjambre (Conviction/Hot), compras directas (Bluechip/Sniper), y rendirá un Cuadro Diario de Contabilidad todos los días a las 08:00 AM.
 
 ---
 
-## 📅 CHANGELOG v2.0.1 (2026-04-08) - The Accounting & Sync Fixes
+## 📅 CHANGELOG FINAL v2.0.2 (2026-04-08) - The AI & Sync Overhaul
 ```diff
++ [AI] Engranaje ML Completado: Restricción dura de probabilidad < 0.50 añadida a las señales de compra (veto 50%).
++ [AI] Puente API (/api/ml/retrain) establecido para agendamientos PostgreSQL (pg_cron) de Supabase Studio.
 + [FIX] Solucionado desajuste severo en la sincronización de la DB Supabase (El dashboard duplicaba capital invertido vs líquido).
 + [FIX] Corregido error KeyError en compras en LIVE MODE que causaba que las transacciones en la red no se registraran localmente ni en la DB.
-+ [FIX] Añadidos atributos 'entry', 'sl' y 'tp2' en todas las señales (Hot Trade/Conviction/Graceful Recovery), solucionando PnL flat $-- en Dashboard.
-+ [FIX] Descuentos y reintegración atómica del Virtual Accounting (paper_balance_usd) durante transacciones On-Chain (_live_buy / _live_sell).
++ [FIX] Añadidos atributos 'entry', 'sl' y 'tp2' en todas las señales, garantizando que el Dashboard no quede en PnL $--.
++ [FIX] Reintegración matemática correcta del balance Virtual tras compras/ventas On-Chain (_live_buy / _live_sell).
++ [CORE] Extirpado wipe_all_data() del Cold Start pasivo. Se garantiza un Graceful Recovery intacto al reiniciar contenedores Docker.
++ [TELEGRAM] Sistema masivo de logs tácticos premium integrado con cuadros de reporte y formateos de lujo.
 + [PRODUCCIÓN] Login Web Premium con interfaz Cyberpunk, gráfico animado y toggle de contraseña.
 + [SEGURIDAD] Autenticación migrada a Token en Cookies firmadas, removido Auth Basic.
 + [CORE] Implementado Cold Start Protocol: Balance a 0 y modo stand-by al iniciar.

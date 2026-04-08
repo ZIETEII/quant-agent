@@ -1879,6 +1879,11 @@ async def api_inject_capital(request: Request, payload: InjectCapitalReq, userna
         app_state["total_pnl"] = 0.0
         app_state["win_count"] = 0
         app_state["closed_count"] = 0
+        app_state["daily_loss"] = 0.0
+        app_state["daily_open_count"] = 0
+        app_state["consecutive_losses"] = 0
+        app_state["paused"] = False
+        app_state["paused_reason"] = ""
         
         db.wipe_all_data()
         db.save_balance(capital, 0, 0, 0, app_state.get("balance_sol_gas", 0.5))

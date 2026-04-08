@@ -189,20 +189,6 @@ def add_brain_event(msg, event_type="info"):
 
 async def engine_loop():
     # Loop principal (DB initialized in lifespan)
-
-    # ── ARRANQUE EN FRÍO Y LIMPIEZA DB ──
-    db.wipe_all_data()
-    
-    app_state["balance_usd"] = 0.0
-    app_state["balance_sol_gas"] = 0.5
-    app_state["total_pnl"] = 0.0
-    app_state["win_count"] = 0
-    app_state["closed_count"] = 0
-    app_state["initial_balance_usd"] = 0.0
-    exchange.paper_balance_usd = 0.0
-    exchange.paper_balance_sol_gas = 0.5
-    
-    app_state["active_trades"] = []
     
     # Obtener precio SOL (Para UI solamente)
     sol_usd = await exchange.get_sol_price_usd()
@@ -330,7 +316,7 @@ async def engine_loop():
                         bb_width=0, bb_position=0.5
                     )
                     scores["ml_prob"] = ml_prob
-                    if ml_prob < 0.25:
+                    if ml_prob < 0.50:
                         add_brain_event(
                             f"🤖 ML rechazó 💎{token.get('symbol','?')} "
                             f"(prob={ml_prob:.0%}, score={scores['total']:.0f})",
@@ -1846,6 +1832,12 @@ async def api_inject_capital(request: Request, payload: InjectCapitalReq, userna
         app_state["initial_balance_usd"] = capital
         app_state["balance_usd"] = capital
         exchange.paper_balance_usd = capital
+        app_state["active_trades"] = []
+        app_state["total_pnl"] = 0.0
+        app_state["win_count"] = 0
+        app_state["closed_count"] = 0
+        
+        db.wipe_all_data()
         db.save_balance(capital, 0, 0, 0, app_state.get("balance_sol_gas", 0.5))
         
         for cid, clone in clone_instances.items():

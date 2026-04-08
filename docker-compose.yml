@@ -2,11 +2,10 @@ version: '3.8'
 
 services:
   quant_agent:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: quant_agent_v1
-    restart: unless-stopped
+    image: ghcr.io/zieteii/quant-agent:latest
+    deploy:
+      restart_policy:
+        condition: any
     ports:
       - "8000:8000"
 

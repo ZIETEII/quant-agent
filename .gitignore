@@ -1,0 +1,40 @@
+# ──────────────────────────────────────────
+#  Quant Agent Solana v1.2 — .gitignore
+# ──────────────────────────────────────────
+
+# Secretos — NUNCA subir al repositorio
+.env
+
+# Bases de datos SQLite (se generan en runtime)
+*.db
+*.sqlite
+
+# Logs generados en runtime
+*.log
+
+# Entorno virtual Python
+.venv/
+venv/
+env/
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Archivos de estado temporal (runtime)
+api_state.json
+tmp_state.json
+
+# Modelos de IA entrenados (grandes)
+data/*.pkl
+*.pkl
+
+# Reportes generados
+docs/reportes/
+static/tmp/
+
+# macOS
+.DS_Store

@@ -1350,17 +1350,60 @@ async def login_page(request: Request):
 @app.post("/api/login")
 @limiter.limit("10/minute")
 async def do_login(request: Request, payload: LoginRequest, response: Response):
+    """Login legacy (username/password env vars). Para compatibilidad con scripts."""
     ok_u = secrets.compare_digest(payload.username, WEB_USER)
     ok_p = secrets.compare_digest(payload.password, WEB_PASS)
     if not (ok_u and ok_p):
         return {"status": "error", "message": "Credenciales incorrectas"}
     token = secrets.token_hex(32)
     _sessions[token] = payload.username
-    response.set_cookie(
-        key="qsession", value=token,
-        httponly=True, samesite="strict", max_age=86400  # 24h
-    )
+    response.set_cookie(key="qsession", value=token, httponly=True, samesite="strict", max_age=86400*30)
     return {"status": "ok", "username": payload.username}
+
+# ── Login via Supabase VPS (el que usa el form nuevo) ──
+class EmailLoginRequest(BaseModel):
+    email: str
+    password: str
+
+@app.post("/api/auth/login")
+@limiter.limit("10/minute")
+async def auth_login_supabase(request: Request, payload: EmailLoginRequest, response: Response):
+    """
+    Login con email + contraseña contra Supabase VPS.
+    Crea cookie de sesión Y retorna access_token para uso en frontend.
+    """
+    if not SUPABASE_AVAILABLE:
+        # Fallback: si Supabase no está disponible, chequear con vars de entorno
+        email_match = payload.email in (WEB_USER, f"{WEB_USER}@quant.local")
+        if email_match and secrets.compare_digest(payload.password, WEB_PASS):
+            token = secrets.token_hex(32)
+            _sessions[token] = WEB_USER
+            response.set_cookie(key="qsession", value=token, httponly=True, samesite="strict", max_age=86400*30)
+            return {"success": True, "access_token": token, "user": {"email": payload.email}, "profile": {"username": WEB_USER, "is_admin": True, "virtual_balance": 0}}
+        return {"success": False, "error": "Credenciales incorrectas"}
+
+    result = await sign_in(payload.email, payload.password)
+    if result.get("error") or not result.get("access_token"):
+        return {"success": False, "error": result.get("error", "Credenciales incorrectas")}
+
+    # Obtener perfil del usuario
+    profile = await get_profile(result["access_token"])
+
+    # Crear sesión cookie (mapea a email del usuario)
+    session_token = secrets.token_hex(32)
+    _sessions[session_token] = result.get("user", {}).get("email", payload.email)
+    response.set_cookie(key="qsession", value=session_token, httponly=True, samesite="strict", max_age=86400*30)
+
+    add_log(f"🔐 Login: {payload.email} — {profile.get('username','?') if profile else '?'}", "info")
+
+    return {
+        "success":       True,
+        "access_token":  result.get("access_token"),
+        "refresh_token": result.get("refresh_token"),
+        "expires_in":    result.get("expires_in"),
+        "user":          result.get("user"),
+        "profile":       profile,
+    }
 
 @app.post("/api/logout")
 async def do_logout(request: Request, response: Response):
@@ -1402,35 +1445,6 @@ except Exception as _e:
     SUPABASE_AVAILABLE = False
     log.warning(f"⚠️ Supabase client no disponible: {_e}")
 
-@app.post("/api/auth/login")
-@limiter.limit("10/minute")
-async def auth_login(request: Request):
-    """Login con email + contraseña. Retorna access_token + perfil."""
-    if not SUPABASE_AVAILABLE:
-        return {"error": "Supabase no disponible", "success": False}
-    body = await request.json()
-    email    = body.get("email", "")
-    password = body.get("password", "")
-    if not email or not password:
-        return {"error": "Email y contraseña requeridos", "success": False}
-
-    result = await sign_in(email, password)
-    if result.get("error"):
-        return {"error": result["error"], "success": False}
-
-    # Obtener perfil del usuario
-    profile = None
-    if result.get("access_token"):
-        profile = await get_profile(result["access_token"])
-
-    return {
-        "success":       True,
-        "access_token":  result.get("access_token"),
-        "refresh_token": result.get("refresh_token"),
-        "expires_in":    result.get("expires_in"),
-        "user":          result.get("user"),
-        "profile":       profile,
-    }
 
 @app.post("/api/auth/logout")
 @limiter.limit("20/minute")

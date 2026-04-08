@@ -3,623 +3,311 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quant AI — Acceso al Sistema</title>
+  <title>Quant Agent — Login</title>
+  <meta name="description" content="Accede a tu plataforma de trading algorítmico en Solana">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --cyan:    #00e0ff;
-      --green:   #0ecb81;
-      --red:     #f6465d;
-      --yellow:  #f0b90b;
-      --bg:      #060b12;
-      --surface: #0d1420;
-      --border:  rgba(0,224,255,0.12);
-      --muted:   rgba(255,255,255,0.35);
-      --font:    'Inter', sans-serif;
-      --mono:    'Space Mono', monospace;
+      --green: #0ecb81; --green-dim: rgba(14,203,129,0.12); --green-glow: rgba(14,203,129,0.35);
+      --red: #f04462; --bg: #080b0f; --card: #0d1117; --border: rgba(255,255,255,0.07);
+      --text: #e2e8f0; --muted: #64748b; --white: #ffffff;
     }
+    html, body { height: 100%; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+    .page { display: grid; grid-template-columns: 1fr 480px; height: 100vh; }
 
-    body {
-      font-family: var(--font);
-      background: var(--bg);
-      color: #fff;
-      height: 100dvh;
-      display: flex;
-      overflow: hidden;
+    /* LEFT */
+    .left {
+      position: relative; overflow: hidden; background: var(--bg);
+      display: flex; flex-direction: column; justify-content: space-between; padding: 40px 52px 72px;
     }
+    .left::before {
+      content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 700px; height: 700px;
+      background: radial-gradient(circle, rgba(14,203,129,0.07) 0%, transparent 65%); pointer-events: none;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; z-index: 2; }
+    .logo-icon { width: 36px; height: 36px; background: var(--green); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .logo-name { font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 0.12em; color: var(--green); text-transform: uppercase; }
+    .hero { z-index: 2; }
+    .hero-sub { font-size: 13px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); font-weight: 500; margin-bottom: 14px; }
+    .hero-title { font-family: 'Space Grotesk', sans-serif; font-size: clamp(48px, 5.5vw, 88px); font-weight: 900; line-height: 1; letter-spacing: 0.08em; text-transform: uppercase; color: var(--white); text-shadow: 0 0 80px rgba(255,255,255,0.12); }
+    .chart-card {
+      position: absolute; bottom: 46px; left: 52px; right: 52px;
+      background: rgba(13,17,23,0.85); border: 1px solid var(--border); border-radius: 16px;
+      backdrop-filter: blur(20px); padding: 18px 22px 14px; overflow: hidden;
+    }
+    .chart-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .chart-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+    .chart-token { font-size: 13px; font-weight: 600; color: var(--white); }
+    .chart-price { font-size: 13px; font-weight: 700; color: var(--green); margin-left: auto; }
+    .chart-change { font-size: 11px; color: var(--green); }
+    .chart-svg { width: 100%; height: 110px; }
+    .chart-stats { display: flex; gap: 28px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .stat-item { display: flex; flex-direction: column; gap: 2px; }
+    .stat-label { font-size: 10px; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
+    .stat-val { font-size: 13px; font-weight: 600; color: var(--white); }
+    .stat-val.up { color: var(--green); }
+    .ticker-wrap { position: absolute; bottom: 0; left: 0; right: 0; height: 34px; overflow: hidden; background: rgba(14,203,129,0.05); border-top: 1px solid rgba(14,203,129,0.12); }
+    .ticker { display: flex; animation: tickerMove 38s linear infinite; white-space: nowrap; height: 100%; align-items: center; }
+    .ticker-item { font-size: 11px; font-weight: 600; padding: 0 24px; color: var(--green); border-right: 1px solid rgba(14,203,129,0.15); }
+    .ticker-item .sym { color: var(--muted); margin-right: 6px; }
+    .ticker-item .neg { color: #f04462; }
+    @keyframes tickerMove { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 
-    /* ── LEFT PANEL ── */
-    .left-panel {
-      flex: 1;
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
-      padding: 48px 52px;
-      overflow: hidden;
+    /* RIGHT */
+    .right {
+      background: #0a0e14; border-left: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 52px; position: relative;
     }
-
-    /* Dashboard screenshot BG */
-    .left-panel::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background:
-        linear-gradient(to right, rgba(6,11,18,0.0) 0%, rgba(6,11,18,0.5) 100%),
-        linear-gradient(to top, rgba(6,11,18,0.95) 0%, rgba(6,11,18,0.3) 60%, rgba(6,11,18,0.0) 100%);
-      z-index: 1;
+    .right::before {
+      content: ''; position: absolute; top: -120px; left: 50%; transform: translateX(-50%);
+      width: 320px; height: 240px; background: radial-gradient(ellipse, rgba(14,203,129,0.10) 0%, transparent 70%); pointer-events: none;
     }
-
-    .dashboard-preview {
-      position: absolute;
-      inset: 0;
-      background:
-        url('/static/logo.png') no-repeat center / cover;
-      filter: blur(0px) brightness(0.25) saturate(0.8);
-      transform: scale(1.04);
-      /* Fallback gradient if image doesn't load */
-      background-color: #0d1420;
-    }
-
-    /* Fake dashboard grid overlay */
-    .grid-overlay {
-      position: absolute;
-      inset: 0;
-      z-index: 0;
-      display: grid;
-      grid-template-columns: 180px 1fr 240px;
-      gap: 0;
-      pointer-events: none;
-      opacity: 0.07;
-    }
-    .go-col { border-right: 1px solid var(--cyan); height: 100%; }
-    .go-col:last-child { border-right: none; }
-
-    /* Glow orb */
-    .glow-orb {
-      position: absolute;
-      width: 600px;
-      height: 600px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(0,224,255,0.08) 0%, transparent 70%);
-      top: -150px;
-      left: -100px;
-      pointer-events: none;
-      z-index: 0;
-    }
-    .glow-orb-2 {
-      position: absolute;
-      width: 400px;
-      height: 400px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(14,203,129,0.06) 0%, transparent 70%);
-      bottom: 0;
-      right: 100px;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    /* Candlestick decoration */
-    .candles {
-      position: absolute;
-      bottom: 180px;
-      left: 0;
-      right: 0;
-      height: 260px;
-      z-index: 1;
-      display: flex;
-      align-items: flex-end;
-      gap: 6px;
-      padding: 0 52px;
-      opacity: 0.18;
-    }
-    .candle {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 2px;
-      animation: candleFloat 3s ease-in-out infinite;
-    }
-    .candle:nth-child(even) { animation-delay: 0.5s; }
-    .candle:nth-child(3n)   { animation-delay: 1s; }
-    @keyframes candleFloat {
-      0%, 100% { transform: scaleY(1) }
-      50%       { transform: scaleY(0.96) }
-    }
-    .candle-wick { width: 1px; background: currentColor; flex-shrink: 0; }
-    .candle-body { width: 100%; border-radius: 2px; }
-    .candle.up  { color: var(--green); }
-    .candle.down{ color: var(--red); }
-
-    /* Left text content */
-    .left-content { position: relative; z-index: 2; }
-    .brand-logo {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 48px;
-    }
-    .brand-icon {
-      width: 40px; height: 40px;
-      background: linear-gradient(135deg, rgba(0,224,255,0.2), rgba(14,203,129,0.2));
-      border: 1px solid rgba(0,224,255,0.4);
-      border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 20px;
-      box-shadow: 0 0 20px rgba(0,224,255,0.15);
-    }
-    .brand-name {
-      font-size: 18px;
-      font-weight: 800;
-      letter-spacing: -0.3px;
-    }
-    .brand-name span { color: var(--cyan); }
-
-    .hero-subtitle {
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.2em;
-      color: var(--muted);
-      text-transform: uppercase;
-      margin-bottom: 14px;
-    }
-
-    .hero-title {
-      font-size: clamp(40px, 5vw, 64px);
-      font-weight: 900;
-      letter-spacing: -2px;
-      line-height: 0.95;
-      text-transform: uppercase;
-      margin-bottom: 24px;
-    }
-    .hero-title .glow-word {
-      display: block;
-      background: linear-gradient(90deg, #fff 0%, var(--cyan) 60%, var(--green) 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-      text-shadow: none;
-      filter: drop-shadow(0 0 30px rgba(0,224,255,0.3));
-    }
-
-    .hero-stats {
-      display: flex;
-      gap: 24px;
-      flex-wrap: wrap;
-    }
-    .hero-stat {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .hero-stat-val {
-      font-family: var(--mono);
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--green);
-    }
-    .hero-stat-lbl {
-      font-size: 10px;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-    }
-
-    /* Live indicator */
-    .live-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(14,203,129,0.1);
-      border: 1px solid rgba(14,203,129,0.3);
-      border-radius: 99px;
-      padding: 6px 14px;
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--green);
-      margin-bottom: 36px;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-    }
-    .live-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--green);
-      box-shadow: 0 0 8px var(--green);
-      animation: livepulse 1.4s ease-in-out infinite;
-    }
-    @keyframes livepulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50%       { opacity: 0.5; transform: scale(0.8); }
-    }
-
-    /* ── DIVIDER ── */
-    .divider {
-      width: 1px;
-      background: linear-gradient(to bottom, transparent, var(--border) 20%, var(--border) 80%, transparent);
-      flex-shrink: 0;
-    }
-
-    /* ── RIGHT PANEL ── */
-    .right-panel {
-      width: 440px;
-      flex-shrink: 0;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: 52px 48px;
-      background: rgba(13, 20, 32, 0.6);
-      backdrop-filter: blur(20px);
-      position: relative;
-      overflow: hidden;
-    }
-    .right-panel::before {
-      content: '';
-      position: absolute;
-      top: -200px;
-      right: -100px;
-      width: 400px;
-      height: 400px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(0,224,255,0.04), transparent 70%);
-      pointer-events: none;
-    }
-
-    .login-title {
-      font-size: 26px;
-      font-weight: 900;
-      letter-spacing: -0.8px;
-      margin-bottom: 6px;
-    }
-    .login-sub {
-      color: var(--muted);
-      font-size: 13px;
-      margin-bottom: 36px;
-      line-height: 1.5;
-    }
-    .login-sub span { color: var(--cyan); }
-
-    /* Form */
-    .form-group {
-      margin-bottom: 14px;
-    }
-    .form-label {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--muted);
-      margin-bottom: 8px;
-      display: block;
-    }
-    .form-input-wrap {
-      display: flex;
-      align-items: center;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 10px;
-      padding: 0 16px;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-    .form-input-wrap:focus-within {
-      border-color: rgba(0,224,255,0.4);
-      box-shadow: 0 0 0 3px rgba(0,224,255,0.07);
-    }
-    .form-icon {
-      font-size: 16px;
-      margin-right: 12px;
-      opacity: 0.5;
-      flex-shrink: 0;
-    }
-    .form-input {
-      flex: 1;
-      background: transparent;
-      border: none;
-      outline: none;
-      color: #fff;
-      font-family: var(--font);
-      font-size: 14px;
-      padding: 14px 0;
-    }
-    .form-input::placeholder { color: rgba(255,255,255,0.25); }
-
-    .pass-toggle {
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: var(--muted);
-      font-size: 16px;
-      padding: 0;
-      transition: color 0.2s;
-      flex-shrink: 0;
-    }
-    .pass-toggle:hover { color: #fff; }
-
-    /* Error */
-    #login-error {
-      display: none;
-      background: rgba(246,70,93,0.1);
-      border: 1px solid rgba(246,70,93,0.3);
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-size: 12px;
-      color: #f6465d;
-      margin-bottom: 14px;
-    }
-
-    /* Submit button */
-    .btn-login {
-      width: 100%;
-      padding: 15px;
-      background: linear-gradient(90deg, rgba(0,224,255,0.15), rgba(14,203,129,0.15));
-      border: 1px solid rgba(0,224,255,0.35);
-      border-radius: 10px;
-      color: #fff;
-      font-family: var(--font);
-      font-size: 14px;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: all 0.2s;
-      margin-top: 6px;
-      position: relative;
-      overflow: hidden;
-    }
-    .btn-login::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
-      transform: translateX(-100%);
-      transition: transform 0.5s;
-    }
-    .btn-login:hover {
-      background: linear-gradient(90deg, rgba(0,224,255,0.25), rgba(14,203,129,0.25));
-      border-color: rgba(0,224,255,0.6);
-      box-shadow: 0 0 20px rgba(0,224,255,0.15);
-      transform: translateY(-1px);
-    }
-    .btn-login:hover::before { transform: translateX(100%); }
+    .form-wrap { width: 100%; max-width: 360px; position: relative; z-index: 2; }
+    .form-eyebrow { font-size: 11px; color: var(--green); letter-spacing: 0.2em; text-transform: uppercase; font-weight: 600; text-align: center; margin-bottom: 10px; }
+    .form-title { font-family: 'Space Grotesk', sans-serif; font-size: 36px; font-weight: 700; text-align: center; background: linear-gradient(135deg, #fff 30%, var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px; }
+    .form-sub { font-size: 13px; color: var(--muted); text-align: center; margin-bottom: 36px; line-height: 1.5; }
+    .form-sub strong { color: var(--text); }
+    .input-group { display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px; }
+    .input-wrapper { position: relative; }
+    .input-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 15px; color: var(--muted); pointer-events: none; transition: color 0.2s; }
+    .input-wrapper:focus-within .input-icon { color: var(--green); }
+    .input-field { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px 14px 44px; font-size: 14px; color: var(--white); font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.2s, background 0.2s, box-shadow 0.2s; }
+    .input-field::placeholder { color: var(--muted); }
+    .input-field:focus { border-color: rgba(14,203,129,0.5); background: rgba(14,203,129,0.04); box-shadow: 0 0 0 3px rgba(14,203,129,0.08); }
+    .pw-toggle { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--muted); font-size: 14px; transition: color 0.2s; padding: 4px; }
+    .pw-toggle:hover { color: var(--text); }
+    .form-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .remember { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .remember input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--green); cursor: pointer; }
+    .remember span { font-size: 13px; color: var(--muted); }
+    .btn-login { width: 100%; background: var(--green); color: #000; border: none; border-radius: 12px; padding: 14px; font-size: 14px; font-weight: 700; font-family: 'Inter', sans-serif; letter-spacing: 0.04em; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; margin-bottom: 20px; }
+    .btn-login::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%); }
+    .btn-login:hover { background: #0fe090; transform: translateY(-1px); box-shadow: 0 8px 28px rgba(14,203,129,0.35); }
     .btn-login:active { transform: translateY(0); }
-    .btn-login:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-
-    /* Footer */
-    .login-footer {
-      margin-top: 32px;
-      font-size: 10px;
-      color: rgba(255,255,255,0.2);
-      text-align: center;
-      line-height: 1.6;
-    }
-    .login-footer a { color: rgba(0,224,255,0.5); text-decoration: none; }
-
-    /* Scan line animation */
-    @keyframes scanline {
-      0%   { transform: translateY(-100%); }
-      100% { transform: translateY(100vh); }
-    }
-    .scanline {
-      position: absolute;
-      left: 0; right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, rgba(0,224,255,0.15), transparent);
-      animation: scanline 6s linear infinite;
-      pointer-events: none;
-      z-index: 10;
-    }
-
-    /* ── MOBILE ── */
-    @media (max-width: 768px) {
-      body { flex-direction: column; overflow-y: auto; }
-      .left-panel {
-        flex: none;
-        height: 260px;
-        padding: 24px;
-        justify-content: flex-end;
-      }
-      .hero-title { font-size: 36px; }
-      .hero-stats { display: none; }
-      .candles { height: 120px; bottom: 80px; }
-      .divider { width: 100%; height: 1px; background: linear-gradient(to right, transparent, var(--border), transparent); }
-      .right-panel { width: 100%; flex: 1; padding: 32px 24px; }
-    }
+    .btn-login:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(0,0,0,0.3); border-top-color: #000; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error-box { display: none; background: rgba(240,68,98,0.10); border: 1px solid rgba(240,68,98,0.3); border-radius: 10px; padding: 12px 16px; font-size: 13px; color: var(--red); margin-bottom: 16px; animation: shake 0.3s ease; align-items: center; gap: 8px; }
+    @keyframes shake { 0%,100% { transform:translateX(0); } 25% { transform:translateX(-6px); } 75% { transform:translateX(6px); } }
+    .error-box.show { display: flex; }
+    .form-footer { text-align: center; font-size: 12px; color: var(--muted); line-height: 1.8; }
+    .form-footer a { color: var(--green); text-decoration: none; font-weight: 500; }
+    .form-footer a:hover { text-decoration: underline; }
+    @media (max-width: 900px) { .page { grid-template-columns: 1fr; } .left { display: none; } .right { padding: 32px 24px; } }
   </style>
 </head>
 <body>
+<div class="page">
 
-<!-- Scanline effect -->
-<div class="scanline"></div>
-
-<!-- ─── LEFT PANEL ─── -->
-<div class="left-panel">
-  <div class="glow-orb"></div>
-  <div class="glow-orb-2"></div>
-  <div class="dashboard-preview"></div>
-
-  <!-- Fake grid overlay -->
-  <div class="grid-overlay">
-    <div class="go-col"></div>
-    <div class="go-col"></div>
-    <div class="go-col"></div>
+  <!-- LEFT -->
+  <div class="left">
+    <div class="logo">
+      <div class="logo-icon">&#9889;</div>
+      <span class="logo-name">Quant Agent</span>
+    </div>
+    <div class="hero">
+      <div class="hero-sub">Powered by Solana &middot; Jupiter DEX</div>
+      <div class="hero-title">BUILT FOR<br>PROFIT.</div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-dot"></div>
+        <span class="chart-token">SOL / USDC</span>
+        <span class="chart-price" id="lp-sol-price">$127.48</span>
+        <span class="chart-change">&#9650; 3.2%</span>
+      </div>
+      <svg class="chart-svg" viewBox="0 0 680 110" preserveAspectRatio="none" id="lp-chart">
+        <defs>
+          <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="rgba(14,203,129,0.18)"/>
+            <stop offset="100%" stop-color="rgba(14,203,129,0)"/>
+          </linearGradient>
+        </defs>
+        <path id="lp-area" fill="url(#areaGrad)" d=""/>
+        <path id="lp-line" fill="none" stroke="#0ecb81" stroke-width="1.8" d=""/>
+        <g id="lp-candles"></g>
+      </svg>
+      <div class="chart-stats">
+        <div class="stat-item"><span class="stat-label">Trades Activos</span><span class="stat-val up" id="lp-open">15</span></div>
+        <div class="stat-item"><span class="stat-label">PnL Dia</span><span class="stat-val up" id="lp-pnl">+$284.50</span></div>
+        <div class="stat-item"><span class="stat-label">Win Rate</span><span class="stat-val up" id="lp-wr">68%</span></div>
+        <div class="stat-item"><span class="stat-label">Balance</span><span class="stat-val" id="lp-bal">$10,000</span></div>
+        <div class="stat-item"><span class="stat-label">Estado</span><span class="stat-val up">&#x1F7E2; ACTIVO</span></div>
+      </div>
+    </div>
+    <div class="ticker-wrap">
+      <div class="ticker">
+        <span class="ticker-item"><span class="sym">SOL</span>$127.48 &#9650;3.2%</span>
+        <span class="ticker-item"><span class="sym">JUP</span>$0.892 &#9650;1.8%</span>
+        <span class="ticker-item"><span class="sym">WIF</span>$1.24 <span class="neg">&#9660;0.6%</span></span>
+        <span class="ticker-item"><span class="sym">BONK</span>$0.0000182 &#9650;5.1%</span>
+        <span class="ticker-item"><span class="sym">RAY</span>$3.47 &#9650;2.3%</span>
+        <span class="ticker-item"><span class="sym">PYTH</span>$0.342 <span class="neg">&#9660;1.2%</span></span>
+        <span class="ticker-item"><span class="sym">ORCA</span>$2.91 &#9650;0.9%</span>
+        <span class="ticker-item"><span class="sym">MEME</span>$0.0127 &#9650;8.4%</span>
+        <span class="ticker-item"><span class="sym">SOL</span>$127.48 &#9650;3.2%</span>
+        <span class="ticker-item"><span class="sym">JUP</span>$0.892 &#9650;1.8%</span>
+        <span class="ticker-item"><span class="sym">WIF</span>$1.24 <span class="neg">&#9660;0.6%</span></span>
+        <span class="ticker-item"><span class="sym">BONK</span>$0.0000182 &#9650;5.1%</span>
+        <span class="ticker-item"><span class="sym">RAY</span>$3.47 &#9650;2.3%</span>
+        <span class="ticker-item"><span class="sym">PYTH</span>$0.342 <span class="neg">&#9660;1.2%</span></span>
+        <span class="ticker-item"><span class="sym">ORCA</span>$2.91 &#9650;0.9%</span>
+        <span class="ticker-item"><span class="sym">MEME</span>$0.0127 &#9650;8.4%</span>
+      </div>
+    </div>
   </div>
 
-  <!-- Animated candle chart -->
-  <div class="candles" id="candles-wrap"></div>
-
-  <div class="left-content">
-    <div class="brand-logo">
-      <div class="brand-icon">⟁</div>
-      <div class="brand-name">Quant <span>AI</span></div>
-    </div>
-    <div class="live-pill">
-      <div class="live-dot"></div>
-      Sistema Operacional · Solana DEX
-    </div>
-    <div class="hero-subtitle">Trading Algorítmico · V2.0 Online</div>
-    <h1 class="hero-title">
-      BUILT FOR<br>
-      <span class="glow-word">ALPHA</span>
-    </h1>
-    <div class="hero-stats">
-      <div class="hero-stat">
-        <div class="hero-stat-val">15 / 15</div>
-        <div class="hero-stat-lbl">Slots Activos</div>
+  <!-- RIGHT -->
+  <div class="right">
+    <div class="form-wrap">
+      <div class="form-eyebrow">Quant Agent &middot; Solana DEX</div>
+      <h1 class="form-title">Start Winning</h1>
+      <p class="form-sub"><strong>Alto rendimiento.</strong> Ejecucion automatica. Control total.</p>
+      <div class="error-box" id="lp-error">
+        <span>&#9888;</span><span id="lp-error-msg">Credenciales incorrectas</span>
       </div>
-      <div class="hero-stat">
-        <div class="hero-stat-val">Solana DEX</div>
-        <div class="hero-stat-lbl">Red Blockchain</div>
-      </div>
-      <div class="hero-stat">
-        <div class="hero-stat-val">3 Clones</div>
-        <div class="hero-stat-lbl">Agentes IA</div>
+      <form id="lp-form" autocomplete="on">
+        <div class="input-group">
+          <div class="input-wrapper">
+            <span class="input-icon">&#9993;</span>
+            <input class="input-field" type="email" id="lp-email" name="email" placeholder="Email" autocomplete="email" required>
+          </div>
+          <div class="input-wrapper">
+            <span class="input-icon">&#128274;</span>
+            <input class="input-field" type="password" id="lp-password" name="password" placeholder="Contrasena" autocomplete="current-password" required>
+            <button type="button" class="pw-toggle" id="lp-pw-toggle">&#128065;</button>
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="remember">
+            <input type="checkbox" id="lp-remember">
+            <span>Mantener sesion</span>
+          </label>
+        </div>
+        <button class="btn-login" type="submit" id="lp-btn">Iniciar Sesion</button>
+      </form>
+      <div class="form-footer">
+        Plataforma privada &middot; Acceso por invitacion<br>
+        <a href="/api/supabase/health" target="_blank">Estado del sistema</a>
       </div>
     </div>
   </div>
-</div>
 
-<!-- ─── DIVIDER ─── -->
-<div class="divider"></div>
-
-<!-- ─── RIGHT PANEL ─── -->
-<div class="right-panel">
-  <div class="login-title">Iniciar Sesión</div>
-  <div class="login-sub">
-    Acceso restringido al sistema de control.<br>
-    Autenticado por <span>Quant AI Security Layer</span>.
-  </div>
-
-  <div id="login-error">❌ <span id="error-msg">Credenciales incorrectas</span></div>
-
-  <form id="login-form" onsubmit="handleLogin(event)" autocomplete="off">
-    <div class="form-group">
-      <label class="form-label" for="input-user">Usuario del Sistema</label>
-      <div class="form-input-wrap">
-        <span class="form-icon">👤</span>
-        <input
-          class="form-input"
-          id="input-user"
-          type="text"
-          placeholder="admin"
-          autocomplete="username"
-          required
-        >
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label class="form-label" for="input-pass">Contraseña Segura</label>
-      <div class="form-input-wrap">
-        <span class="form-icon">🔒</span>
-        <input
-          class="form-input"
-          id="input-pass"
-          type="password"
-          placeholder="••••••••"
-          autocomplete="current-password"
-          required
-        >
-        <button type="button" class="pass-toggle" onclick="togglePass()" id="pass-eye">👁</button>
-      </div>
-    </div>
-
-    <button class="btn-login" type="submit" id="btn-submit">
-      ⚡ ACCEDER AL SISTEMA
-    </button>
-  </form>
-
-  <div class="login-footer">
-    Quant AI v2.0 · Motor Algorítmico Solana<br>
-    Sistema protegido · Acceso solo autorizado<br><br>
-    <a href="#">Términos de Uso</a> · <a href="#">Soporte Técnico</a>
-  </div>
 </div>
 
 <script>
-  // ─── Candle Chart Animation ───────────────────────────────
-  (function generateCandles() {
-    const wrap = document.getElementById('candles-wrap');
-    const count = 42;
-    const heights = [80,60,90,45,110,75,55,100,65,85,40,95,70,50,120,60,80,45,100,70,90,55,75,85,65,50,110,80,40,95,70,60,100,55,85,45,70,90,60,80,50,75];
-    for (let i = 0; i < count; i++) {
-      const isUp = Math.random() > 0.45;
-      const bodyH = heights[i % heights.length];
-      const wickT = Math.floor(bodyH * 0.3);
-      const wickB = Math.floor(bodyH * 0.2);
-      wrap.innerHTML += `
-        <div class="candle ${isUp ? 'up' : 'down'}">
-          <div class="candle-wick" style="height:${wickT}px"></div>
-          <div class="candle-body" style="height:${bodyH}px;background:currentColor;opacity:0.9"></div>
-          <div class="candle-wick" style="height:${wickB}px"></div>
-        </div>`;
-    }
-  })();
+// Chart
+(function() {
+  var W=680,H=110,n=34,prices=[],p=55;
+  for(var i=0;i<n;i++){p+=(Math.random()-0.42)*8;p=Math.max(12,Math.min(98,p));prices.push(p);}
+  var cw=W/n,lineD='',areaD='';
+  var candles=document.getElementById('lp-candles');
+  prices.forEach(function(close,i){
+    var open=i===0?close:prices[i-1];
+    var high=Math.max(open,close)+Math.random()*5;
+    var low=Math.min(open,close)-Math.random()*5;
+    var x=i*cw+cw/2;
+    var isUp=close>=open;
+    var color=isUp?'#0ecb81':'#f04462';
+    var wick=document.createElementNS('http://www.w3.org/2000/svg','line');
+    wick.setAttribute('x1',x);wick.setAttribute('x2',x);
+    wick.setAttribute('y1',H-high);wick.setAttribute('y2',H-low);
+    wick.setAttribute('stroke',color);wick.setAttribute('stroke-width','1.2');
+    candles.appendChild(wick);
+    var rect=document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('x',x-cw*0.3);rect.setAttribute('y',H-Math.max(open,close));
+    rect.setAttribute('width',cw*0.6);rect.setAttribute('height',Math.max(1.5,Math.abs(close-open)));
+    rect.setAttribute('fill',color);rect.setAttribute('rx','1');
+    candles.appendChild(rect);
+    var cx=i*cw+cw/2,cy=H-close;
+    lineD+=i===0?'M'+cx+','+cy:'L'+cx+','+cy;
+    areaD+=i===0?'M'+cx+','+cy:'L'+cx+','+cy;
+  });
+  areaD+='L'+W+','+H+' L0,'+H+' Z';
+  document.getElementById('lp-line').setAttribute('d',lineD);
+  document.getElementById('lp-area').setAttribute('d',areaD);
+})();
 
-  // ─── Password Toggle ──────────────────────────────────────
-  function togglePass() {
-    const inp = document.getElementById('input-pass');
-    const eye = document.getElementById('pass-eye');
-    if (inp.type === 'password') {
-      inp.type = 'text';
-      eye.textContent = '🙈';
-    } else {
-      inp.type = 'password';
-      eye.textContent = '👁';
+// PW toggle
+document.getElementById('lp-pw-toggle').addEventListener('click',function(){
+  var pw=document.getElementById('lp-password');
+  var show=pw.type==='password';
+  pw.type=show?'text':'password';
+  this.textContent=show?'&#128584;':'&#128065;';
+});
+
+// Form
+var form=document.getElementById('lp-form');
+var btn=document.getElementById('lp-btn');
+var errBox=document.getElementById('lp-error');
+var errMsg=document.getElementById('lp-error-msg');
+
+function showError(msg){errMsg.textContent=msg;errBox.classList.add('show');}
+function hideError(){errBox.classList.remove('show');}
+
+form.addEventListener('submit',async function(e){
+  e.preventDefault();
+  hideError();
+  var email=document.getElementById('lp-email').value.trim();
+  var password=document.getElementById('lp-password').value;
+  var remember=document.getElementById('lp-remember').checked;
+  btn.disabled=true;
+  btn.innerHTML='<span class="spinner"></span>Verificando...';
+  try {
+    var res=await fetch('/api/auth/login',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email,password})
+    });
+    var data=await res.json();
+    if(!data.success||data.error){
+      showError(data.error||'Credenciales incorrectas');
+      btn.disabled=false;btn.textContent='Iniciar Sesion';return;
     }
+    var storage=remember?localStorage:sessionStorage;
+    storage.setItem('qa_access_token',data.access_token);
+    storage.setItem('qa_refresh_token',data.refresh_token||'');
+    storage.setItem('qa_user',JSON.stringify(data.user||{}));
+    storage.setItem('qa_profile',JSON.stringify(data.profile||{}));
+    btn.style.background='#0ecb81';
+    btn.innerHTML='&#9989; Acceso concedido...';
+    setTimeout(function(){window.location.href='/';},700);
+  } catch(err) {
+    showError('Error de conexion. Verifica tu red.');
+    btn.disabled=false;btn.textContent='Iniciar Sesion';
   }
+});
 
-  // ─── Login Handler ────────────────────────────────────────
-  async function handleLogin(e) {
-    e.preventDefault();
-    const btn = document.getElementById('btn-submit');
-    const errBox = document.getElementById('login-error');
-    const errMsg = document.getElementById('error-msg');
-
-    btn.disabled = true;
-    btn.textContent = '⏳ Autenticando…';
-    errBox.style.display = 'none';
-
-    const username = document.getElementById('input-user').value.trim();
-    const password = document.getElementById('input-pass').value;
-
-    try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-        credentials: 'same-origin'
-      });
-      const data = await res.json();
-
-      if (data.status === 'ok') {
-        btn.textContent = '✅ Acceso Concedido';
-        btn.style.borderColor = 'rgba(14,203,129,0.6)';
-        btn.style.background = 'linear-gradient(90deg, rgba(14,203,129,0.25), rgba(0,224,255,0.15))';
-        setTimeout(() => { window.location.href = '/'; }, 400);
-      } else {
-        errMsg.textContent = data.message || 'Credenciales incorrectas';
-        errBox.style.display = 'block';
-        btn.disabled = false;
-        btn.textContent = '⚡ ACCEDER AL SISTEMA';
-        // Shake animation on form
-        document.getElementById('login-form').animate([
-          {transform:'translateX(-6px)'},{transform:'translateX(6px)'},
-          {transform:'translateX(-4px)'},{transform:'translateX(4px)'},
-          {transform:'translateX(0)'}
-        ], { duration: 300, easing: 'ease-out' });
-      }
-    } catch (err) {
-      errMsg.textContent = 'Error de conexión con el servidor';
-      errBox.style.display = 'block';
-      btn.disabled = false;
-      btn.textContent = '⚡ ACCEDER AL SISTEMA';
+// Live stats
+(async function(){
+  try {
+    var r=await fetch('/api/state');
+    var d=await r.json();
+    if(d.balance_usd!==undefined) document.getElementById('lp-bal').textContent='$'+parseFloat(d.balance_usd).toFixed(2);
+    if(d.active_trades) document.getElementById('lp-open').textContent=d.active_trades.length;
+    if(d.sol_price_usd>0) document.getElementById('lp-sol-price').textContent='$'+parseFloat(d.sol_price_usd).toFixed(2);
+    if(d.total_pnl!==undefined){
+      var pnl=parseFloat(d.total_pnl);
+      var el=document.getElementById('lp-pnl');
+      el.textContent=(pnl>=0?'+':'')+'$'+Math.abs(pnl).toFixed(2);
+      el.style.color=pnl>=0?'#0ecb81':'#f04462';
     }
+  } catch(_){}
+})();
+
+// Auto-redirect if already logged in
+(function(){
+  var tok=localStorage.getItem('qa_access_token')||sessionStorage.getItem('qa_access_token');
+  if(tok){
+    fetch('/api/auth/me',{headers:{Authorization:'Bearer '+tok}})
+      .then(function(r){return r.json();})
+      .then(function(d){if(d.authenticated)window.location.href='/';})
+      .catch(function(){});
   }
+})();
 </script>
 </body>
 </html>

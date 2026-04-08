@@ -23,3 +23,25 @@ Por eso:
 - ¿Dónde se refleja visualmente esto en UI? `web/templates/index.html` -> Función `fetchState()` y `renderSidebar()`.
 
 ¡Este sistema ahora está 100% blindado para un Cold Start real y no operará nada a tus espaldas!
+
+---
+
+## Integración: Jupiter Perps (Operativa en Corto)
+
+### 1. El Cerebro (Señales Inversas en `main.py`)
+- **Bluechips Exclusivos:** Los shorts solo aplenden para el mercado de monedas sólidas (Top 100). No se hace short en memecoins especulativas del ecosistema Pump.fun (Sniper mode sigue siendo solo Long).
+- **Activación de Pánico:** El bot genera la señal `SHORT` únicamente si el *Momentum* global es `< 30` y el *Score técnico* del token es `< 30`.
+- **Machine Learning Invertido:** En contraparte a posiciones Long (`ml_prob > 0.50`), se evalúa una probabilidad estricta bajista (`ml_prob < 0.25`).
+- **Apalancamiento Dinámico (1x - 10x):** El riesgo escala matemáticamente basándose en el déficit de Score de la moneda (puntajes más bajos = apalancamiento más agresivo).
+
+### 2. Paper Trading de Futuros (`jupiter_client.py`)
+- Se implementó aritmética de Margen Cruzado para poder simular Shorts en spot:
+  - **Margen:** Se deduce el costo de la simulación del balance general del bot.
+  - **PnL Simulado Inverso:** `((Precio Inicial - Precio Actual) / Precio Inicial) * Margen * Apalancamiento`.
+
+### 3. Lógica de Riesgos (SL / TP y Trailing Inverso)
+- El **Stop Loss (SL)** ahora se fija *por encima* del precio de entrada y el **Take Profit (TP)** *por debajo*.
+- El **Trailing Stop Smart** ajusta automáticamente el rastreo, memorizando el **"precio registrado más bajo"** histórico de la sesión en lugar del precio más alto; si el token intenta recuperarse desde el mínimo hacia un % de tolerancia, consolida las ganancias bloqueando en break-even o profit.
+
+### 4. Cambios Visuales (UI)
+- Para reflejar las operaciones mixtas, se incrustó en `index.html` una etiqueta dinámica *(Badge)* de advertencia de apalancamiento. Si el trade en curso tiene el flag `direction === 'SHORT'`, despliega la alerta visual en rojo vibrante (ej. `[5.0x SHORT]`) directamente en la tabla principal de métricas para ayudar al trader a distinguir su comportamiento.

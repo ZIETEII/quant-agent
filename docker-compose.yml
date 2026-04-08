@@ -6,6 +6,14 @@ services:
     deploy:
       restart_policy:
         condition: any
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.quant_agent.rule=Host(`quant.logvox.com`)
+        - traefik.http.services.quant_agent.loadbalancer.server.port=8000
+        - traefik.http.routers.quant_agent.service=quant_agent
+        - traefik.http.routers.quant_agent.entrypoints=websecure
+        - traefik.http.routers.quant_agent.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.quant_agent.tls=true
     ports:
       - "8000:8000"
 

@@ -10,12 +10,18 @@ import logging
 from datetime import datetime, date, timedelta
 from contextlib import contextmanager
 
-# ── SUPABASE / POSTGRESQL SETUP ──
-import psycopg2
-from psycopg2.pool import SimpleConnectionPool
-from psycopg2.extras import RealDictCursor
-
 log = logging.getLogger("AgenteBot.DB")
+
+try:
+    import psycopg2
+    from psycopg2.pool import SimpleConnectionPool
+    from psycopg2.extras import RealDictCursor
+    DB_MOCK = False
+except ImportError:
+    # Si psycopg2 no está instalado (ej. desarrollo local), usamos el Mock
+    DB_MOCK = True
+    log.warning("No se encontró psycopg2, usando BASE DE DATOS MOCK en memoria. No se guardarán los datos.")
+    from db_mock import *
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
@@ -567,3 +573,6 @@ def clean_old_history(retention_days: int = 7):
             except Exception as e:
                 log.error(f"Error limpiando historial: {e}")
         conn.commit()
+
+if DB_MOCK:
+    from db_mock import *

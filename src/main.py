@@ -1884,15 +1884,22 @@ async def api_inject_capital(request: Request, payload: InjectCapitalReq, userna
         db.save_balance(capital, 0, 0, 0, app_state.get("balance_sol_gas", 0.5))
         
         for cid, clone in clone_instances.items():
-            clone_state = db.load_clone_state(cid) or {
+            clone_state = {
                 "clone_id": cid, "balance": capital, "total_pnl": 0, "win_count": 0,
                 "closed_count": 0, "cycle_number": 1, "cycle_start": datetime.now().isoformat(),
                 "cycle_days": 30, "synced_mints": [], "active_trades": []
             }
-            clone_state["balance"] = capital
-            clone_state.pop("updated_at", None)
-            clone_state.pop("created_at", None)
-            clone_state.pop("id", None)
+            # 1. Limpiar la memoria real (RAM) del objeto Python
+            clone.active_trades = []
+            clone.synced_mints = set()
+            clone.balance = capital
+            clone.total_pnl = 0
+            clone.win_count = 0
+            clone.closed_count = 0
+            clone.cycle_number = 1
+            clone.cycle_start = datetime.now()
+            
+            # 2. Guardar el estado limpio a la DB
             db.save_clone_state(**clone_state)
             
         app_state["bot_active"] = True

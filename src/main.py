@@ -1146,8 +1146,22 @@ async def lifespan(app: FastAPI):
     log.info("Dashboard Solana DEX Activo")
     yield
 
+from pydantic import BaseModel
+from slowapi.util import get_remote_address
+
+def get_auth_or_ip(request: Request) -> str:
+    auth = request.headers.get("Authorization")
+    if auth:
+        return auth
+    return get_remote_address(request)
+
+class ConfigOverrideReq(BaseModel):
+    agent_id: str
+    key: str
+    value: float
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
+limiter = Limiter(key_func=get_auth_or_ip, default_limits=["200/minute"])
 app = FastAPI(lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -1257,7 +1271,7 @@ async def get_equity(request: Request, agent: str = "main"):
     return {"status": "ok", "data": history}
 
 @app.post("/api/toggle_bot")
-@limiter.limit("30/minute")
+@limiter.limit("15/minute")
 async def toggle_bot(request: Request):
     app_state["bot_active"] = not app_state.get("bot_active", False)
     return {"status": "ok", "bot_active": app_state["bot_active"]}
@@ -1695,7 +1709,8 @@ def hard_reset_process():
     os._exit(0)
 
 @app.post("/api/reset_db")
-async def api_reset_db():
+@limiter.limit("15/minute")
+async def api_reset_db(request: Request):
     threading.Thread(target=hard_reset_process, daemon=True).start()
     return {"status": "ok", "message": "Reiniciando base de datos. Recargue en 5 segundos."}
 
@@ -1732,12 +1747,12 @@ async def api_export_trades(agent_id: str = "main"):
     return Response(content=output.getvalue(), media_type="text/csv", headers={"Content-Disposition": f"attachment; filename=trades_{agent_id}_{int(time.time())}.csv"})
 
 @app.post("/api/config_override")
-async def api_config_override(request: Request, username: str = Depends(verify_auth)):
+@limiter.limit("15/minute")
+async def api_config_override(request: Request, payload: ConfigOverrideReq, username: str = Depends(verify_auth)):
     try:
-        data = await request.json()
-        agent_id = data.get("agent_id")
-        key = data.get("key")
-        value = float(data.get("value"))
+        agent_id = payload.agent_id
+        key = payload.key
+        value = payload.value
         
         if agent_id == "main":
             # Si se altera configuración main, la sobreescribimos via env/global para el simulador

@@ -18,8 +18,7 @@ services:
 
     environment:
       - PAPER_MODE=False  # ¡ADVERTENCIA: False significa LIVE TRADING con capital real!
-      # Conexión directa a la base de datos Postgres del stack de Supabase (ORION)
-      - DATABASE_URL=postgresql://postgres:011436cf3c97901c7be1be84e5499eca@db:5432/postgres
+      - DATABASE_URL=${DATABASE_URL}
     networks:
       - logvoxNet
     healthcheck:

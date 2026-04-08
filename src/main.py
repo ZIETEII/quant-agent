@@ -1908,8 +1908,8 @@ async def api_inject_capital(request: Request, payload: InjectCapitalReq, userna
             # 2. Guardar el estado limpio a la DB
             db.save_clone_state(**clone_state)
             
-        app_state["bot_active"] = True
-        return {"status": "ok", "message": f"Capital inyectado: ${capital}. Motores encendidos."}
+        app_state["bot_active"] = False
+        return {"status": "ok", "message": f"Capital inyectado: ${capital}. Agente listo (Apagado)."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 

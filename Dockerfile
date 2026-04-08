@@ -26,5 +26,7 @@ COPY . .
 # Exponer el puerto
 EXPOSE 8000
 
+ENV PYTHONPATH="/app/src"
+
 # Archivo de start por defecto
-CMD ["uvicorn", "bot_agente:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

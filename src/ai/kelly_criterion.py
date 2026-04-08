@@ -18,7 +18,7 @@ para reducir volatilidad del portafolio sin sacrificar crecimiento.
 """
 
 import logging
-import db
+from core import db
 
 log = logging.getLogger("AgenteBot.Kelly")
 

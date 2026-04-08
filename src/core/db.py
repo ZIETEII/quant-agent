@@ -12,22 +12,15 @@ from contextlib import contextmanager
 
 log = logging.getLogger("AgenteBot.DB")
 
-try:
-    import psycopg2
-    from psycopg2.pool import SimpleConnectionPool
-    from psycopg2.extras import RealDictCursor
-    DB_MOCK = False
-except ImportError:
-    # Si psycopg2 no está instalado (ej. desarrollo local), usamos el Mock
-    DB_MOCK = True
-    log.warning("No se encontró psycopg2, usando BASE DE DATOS MOCK en memoria. No se guardarán los datos.")
-    from db_mock import *
+# ── SUPABASE / POSTGRESQL SETUP ──
+import psycopg2
+from psycopg2.pool import SimpleConnectionPool
+from psycopg2.extras import RealDictCursor
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
-    log.warning("🔌 No se encontró DATABASE_URL en el entorno, apuntando por defecto a sqlite o error eventual.")
-    # Fallback temporal si no se configura para evitar que rompa inmediatamente en terminal local
-    DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/postgres"
+    log.error("🔌 CRÍTICO: No se encontró DATABASE_URL en el entorno. Fallback prohibido en v2.0.")
+    raise ValueError("Missing DATABASE_URL for Postgres")
 
 # Connection pool global
 db_pool = None
@@ -573,6 +566,3 @@ def clean_old_history(retention_days: int = 7):
             except Exception as e:
                 log.error(f"Error limpiando historial: {e}")
         conn.commit()
-
-if DB_MOCK:
-    from db_mock import *

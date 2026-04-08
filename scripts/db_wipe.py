@@ -5,10 +5,11 @@ import sys
 # Load environment variable if present. Locally, python might load it via dotenv or the user passes it.
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
+# Intentar cargar de .env local (un directorio arriba)
 if not DATABASE_URL:
-    # Intenta cargar de .env local si existe
-    if os.path.exists(".env"):
-        with open(".env", "r") as f:
+    env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+    if os.path.exists(env_path):
+        with open(env_path, "r") as f:
             for line in f:
                 if line.startswith("DATABASE_URL="):
                     DATABASE_URL = line.strip().split("=", 1)[1]

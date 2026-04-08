@@ -12,7 +12,7 @@ import logging
 from datetime import datetime, timedelta
 import copy
 
-import db
+from core import db
 from ai.sentiment import get_risk_modifier
 
 log = logging.getLogger("AgenteBot.Clone")

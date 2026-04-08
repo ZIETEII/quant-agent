@@ -9,7 +9,7 @@ import logging
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 
-import db
+from core import db
 
 log = logging.getLogger("AgenteBot.AI")
 

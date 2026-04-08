@@ -21,7 +21,7 @@ import io
 import numpy as np
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-import db  # Módulo de memoria SQLite
+from core import db  # Módulo de memoria SQLite
 
 from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -1151,8 +1151,8 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 app = FastAPI(lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
-templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "..", "web", "static")), name="static")
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "..", "web", "templates"))
 
 # ── SEGURIDAD (HTTP BASIC AUTH) ──
 security = HTTPBasic()

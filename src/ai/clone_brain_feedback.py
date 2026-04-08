@@ -10,7 +10,7 @@ import json
 import logging
 from datetime import datetime
 
-import db
+from core import db
 
 log = logging.getLogger("AgenteBot.CloneFeedback")
 

@@ -40,3 +40,15 @@ jobs:
           push: true
           tags: ghcr.io/zieteii/quant-agent:latest
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Desplegar en Portainer automáticamente
+        env:
+          PORTAINER_WEBHOOK: ${{ secrets.PORTAINER_WEBHOOK }}
+        run: |
+          if [ -z "$PORTAINER_WEBHOOK" ]; then
+            echo "Aviso: No se configuró el secreto PORTAINER_WEBHOOK en Github. Saltando despliegue automático..."
+          else
+            echo "Notificando a Portainer para hacer el Pull & Redeploy..."
+            curl -X POST "$PORTAINER_WEBHOOK"
+            echo -e "\n¡Actualización enviada a Portainer!"
+          fi

@@ -438,12 +438,22 @@ class JupiterClient:
             # Necesitamos inferir los decimales reales del token o guardarlo como float estimado
             price_usd = await self.get_token_price_usd(token_mint) # Guardar referencia de precio
             
+            # Estimación de cantidad recibida basada en el precio
+            sol_price_usd = await self.get_sol_price_usd()
+            usd_spent = sol_amount * sol_price_usd
+            estimated_qty = (usd_spent / price_usd) * 0.95 if price_usd > 0 else 0
+
+            # Descontar del balance de la aplicación para que la UI no sume doble
+            self.paper_balance_usd -= usd_spent
+
             log.info(f"[LIVE BUY ÉXITO] Hash: {tx_res.get('tx_hash')}")
             return {
                 "success": True,
                 "tx_hash": tx_res.get("tx_hash"),
                 "sol_spent": sol_amount,
+                "usd_spent": usd_spent,
                 "price_usd": price_usd,
+                "qty": estimated_qty,
                 "msg": "Transaction broadcasted successfully (Check Explorer)"
             }
         else:
@@ -576,11 +586,21 @@ class JupiterClient:
         
         if tx_res.get("success"):
             price_usd = await self.get_token_price_usd(token_mint) # Guardamos para métricas/BD
+            
+            # Estimación de recibo en vivo (outAmount son lamports recibidos)
+            expected_outAmount = int(swap_res.get("quote", {}).get("outAmount", 0))
+            sol_price_usd = await self.get_sol_price_usd()
+            usd_received = (expected_outAmount / 1_000_000_000) * sol_price_usd
+            
+            # Reintegrar al balance de la aplicación
+            self.paper_balance_usd += usd_received
+            
             log.info(f"[LIVE SELL ÉXITO] 🎉 Hash: {tx_res.get('tx_hash')}")
             return {
                 "success": True,
                 "tx_hash": tx_res.get("tx_hash"),
                 "price_usd": price_usd,
+                "usd_received": usd_received,
                 "msg": "Transacción de venta enviada correctamente al DEX"
             }
         else:

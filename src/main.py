@@ -677,9 +677,17 @@ async def engine_loop():
                                     "highest_price": res["price_usd"], "trailing_active": False,
                                     "current_price": res["price_usd"], "pnl": 0.0, "pnl_pct": 0.0,
                                     "opened_at": datetime.now().isoformat(), "agent_id": "main", "source": "signal_hot",
-                                    "scores": {"total": 80}, "tx_hash": res.get("tx_hash", ""), "type": "BUY"
+                                    "scores": {"total": 80}, "tx_hash": res.get("tx_hash", ""), "type": "BUY",
+                                    "entry": res["price_usd"],
+                                    "sl": res["price_usd"] * (1 - SN_STOP_LOSS / 100),
+                                    "tp2": res["price_usd"] * (1 + SN_TAKE_PROFIT / 100)
                                 }
                                 app_state["active_trades"].append(new_trade)
+                                app_state["balance_usd"] = exchange.paper_balance_usd
+                                app_state["balance_sol_gas"] = exchange.paper_balance_sol_gas
+                                db.save_balance(app_state["balance_usd"], app_state["total_pnl"],
+                                                app_state["win_count"], app_state["closed_count"],
+                                                app_state["balance_sol_gas"])
                                 open_mints.add(mint)
                                 db.save_active_trades(app_state["active_trades"])
                                 add_brain_event(f"⚡ COMPRA HOT_TRADE: {sdata['symbol']} iniciada.", "buy")
@@ -710,9 +718,17 @@ async def engine_loop():
                                     "highest_price": res["price_usd"], "trailing_active": False,
                                     "current_price": res["price_usd"], "pnl": 0.0, "pnl_pct": 0.0,
                                     "opened_at": datetime.now().isoformat(), "agent_id": "main", "source": "signal_conviction",
-                                    "scores": {"total": 90}, "tx_hash": res.get("tx_hash", ""), "type": "BUY"
+                                    "scores": {"total": 90}, "tx_hash": res.get("tx_hash", ""), "type": "BUY",
+                                    "entry": res["price_usd"],
+                                    "sl": res["price_usd"] * (1 - SN_STOP_LOSS / 100),
+                                    "tp2": res["price_usd"] * (1 + SN_TAKE_PROFIT / 100)
                                 }
                                 app_state["active_trades"].append(new_trade)
+                                app_state["balance_usd"] = exchange.paper_balance_usd
+                                app_state["balance_sol_gas"] = exchange.paper_balance_sol_gas
+                                db.save_balance(app_state["balance_usd"], app_state["total_pnl"],
+                                                app_state["win_count"], app_state["closed_count"],
+                                                app_state["balance_sol_gas"])
                                 open_mints.add(mint)
                                 db.save_active_trades(app_state["active_trades"])
                                 add_brain_event(f"🎯 COMPRA CONVICTION: {sdata['symbol']} confirmada por clones.", "buy")
@@ -1119,7 +1135,10 @@ async def lifespan(app: FastAPI):
                             "sl_pct": 15,
                             "tp_pct": 20,
                             "trailing_pct": 8,
-                            "opened_at": datetime.now().isoformat()
+                            "opened_at": datetime.now().isoformat(),
+                            "entry": price_usd,
+                            "sl": price_usd * (1 - 0.15),
+                            "tp2": price_usd * (1 + 0.20)
                         }
                         app_state["active_trades"].append(trade)
                         active_mints.add(mint)

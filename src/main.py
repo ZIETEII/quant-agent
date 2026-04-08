@@ -1875,6 +1875,7 @@ async def api_inject_capital(request: Request, payload: InjectCapitalReq, userna
         app_state["initial_balance_usd"] = capital
         app_state["balance_usd"] = capital
         exchange.paper_balance_usd = capital
+        exchange.paper_holdings = {}
         app_state["active_trades"] = []
         app_state["total_pnl"] = 0.0
         app_state["win_count"] = 0

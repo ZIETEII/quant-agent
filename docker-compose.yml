@@ -14,8 +14,7 @@ services:
         - traefik.http.routers.quant_agent.entrypoints=websecure
         - traefik.http.routers.quant_agent.tls.certresolver=letsencryptresolver
         - traefik.http.routers.quant_agent.tls=true
-    ports:
-      - "8000:8000"
+
 
     environment:
       - PAPER_MODE=False  # ¡ADVERTENCIA: False significa LIVE TRADING con capital real!

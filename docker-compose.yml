@@ -17,8 +17,43 @@ services:
 
 
     environment:
-      - PAPER_MODE=False  # ¡ADVERTENCIA: False significa LIVE TRADING con capital real!
+      # ── Trading Mode ──
+      - PAPER_TRADING_MODE=True           # ✅ Simulación con precios reales / sin txs
+      - SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
       - DATABASE_URL=${DATABASE_URL}
+      # ── Telegram ──
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      # ── Solana / Jupiter ──
+      - SOLANA_WALLET_ADDRESS=${SOLANA_WALLET_ADDRESS}
+      - SOLANA_PRIVATE_KEY=${SOLANA_PRIVATE_KEY}
+      - JUPITER_API_KEY=${JUPITER_API_KEY}
+      # ── Trading Config ──
+      - MAX_OPEN_TRADES=${MAX_OPEN_TRADES:-15}
+      - SCAN_INTERVAL_SECONDS=${SCAN_INTERVAL_SECONDS:-15}
+      - BLUECHIP_SLOTS=${BLUECHIP_SLOTS:-5}
+      - SNIPER_SLOTS=${SNIPER_SLOTS:-10}
+      # ── Bluechip ──
+      - BC_MIN_SCORE=${BC_MIN_SCORE:-35}
+      - BC_TAKE_PROFIT=${BC_TAKE_PROFIT:-8}
+      - BC_STOP_LOSS=${BC_STOP_LOSS:-5}
+      - BC_TRAILING=${BC_TRAILING:-3}
+      - BC_RISK_PCT=${BC_RISK_PCT:-0.12}
+      - BC_SLIPPAGE=${BC_SLIPPAGE:-100}
+      - BC_DEAD_MINUTES=${BC_DEAD_MINUTES:-5}
+      # ── Sniper ──
+      - SN_MIN_MOMENTUM=${SN_MIN_MOMENTUM:-10}
+      - SN_MIN_SAFETY=${SN_MIN_SAFETY:-10}
+      - SN_MIN_SCORE=${SN_MIN_SCORE:-20}
+      - SN_TAKE_PROFIT=${SN_TAKE_PROFIT:-25}
+      - SN_STOP_LOSS=${SN_STOP_LOSS:-12}
+      - SN_TRAILING=${SN_TRAILING:-8}
+      - SN_RISK_PCT=${SN_RISK_PCT:-0.08}
+      - SN_SLIPPAGE_BUY=${SN_SLIPPAGE_BUY:-1500}
+      - SN_SLIPPAGE_SELL=${SN_SLIPPAGE_SELL:-2000}
+      - SN_MOONBAG=${SN_MOONBAG:-0.20}
+      - SN_DEAD_MINUTES=${SN_DEAD_MINUTES:-5}
+      - SNIPER_MAX_AGE_MIN=${SNIPER_MAX_AGE_MIN:-60}
     networks:
       - logvoxNet
     healthcheck:

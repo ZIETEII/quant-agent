@@ -286,8 +286,16 @@ class BaseClone:
 
             trade["current_price"] = current_price
             entry = trade["entry_usd"]
-            pnl_pct = ((current_price - entry) / entry * 100) if entry > 0 else 0
-            pnl_usd = (current_price - entry) * trade["qty"]
+            
+            usd_spent = trade.get("usd_spent")
+            if usd_spent is not None and usd_spent > 0:
+                current_value = current_price * trade["qty"]
+                pnl_usd = current_value - usd_spent
+                pnl_pct = (pnl_usd / usd_spent) * 100
+            else:
+                pnl_pct = ((current_price - entry) / entry * 100) if entry > 0 else 0
+                pnl_usd = (current_price - entry) * trade["qty"]
+
             trade["pnl"] = round(pnl_usd, 6)
             trade["pnl_pct"] = round(pnl_pct, 2)
             total_unrealized += pnl_usd

@@ -1842,7 +1842,7 @@ function renderPositions(trades, skipFilter){
       </div></td>
       <td style="font-family:var(--mono); text-align:right">$${fmt(tr.entry)}</td>
       <td style="font-family:var(--mono); text-align:right" class="${c}"><span class="${flashClsTxt}">$${fmt(cp)}</span></td>
-      <td style="font-family:var(--mono); text-align:right" class="${c}">${pnl>=0?'+':''}$${Math.abs(pnl).toFixed(4)}</td>
+      <td style="font-family:var(--mono); text-align:right" class="${c}">${pnl>=0?'+':'-'}$${Math.abs(pnl).toFixed(4)}</td>
       <td style="text-align:right"><div class="pnl-bar-wrap" style="justify-content:flex-end">
         <span style="font-family:var(--mono);font-size:11px" class="${c}">${pct>=0?'+':''}${pct.toFixed(2)}%</span>
         <div class="pnl-bar"><div class="pnl-bar-inner" style="width:${barW}%;background:${pnl>=0?'var(--green)':'var(--red)'}"></div></div>

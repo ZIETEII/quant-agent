@@ -1162,25 +1162,79 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "..", "web", "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "..", "web", "templates"))
 
-# ── SEGURIDAD (HTTP BASIC AUTH) ──
-security = HTTPBasic()
+# ── SEGURIDAD (COOKIE SESSION AUTH) ──
 WEB_USER = os.getenv("WEB_USER", "admin")
 WEB_PASS = os.getenv("WEB_PASS", "quant123")
 
-def verify_auth(credentials: HTTPBasicCredentials = Depends(security)):
-    correct_username = secrets.compare_digest(credentials.username, WEB_USER)
-    correct_password = secrets.compare_digest(credentials.password, WEB_PASS)
-    if not (correct_username and correct_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Acceso restringido",
-            headers={"WWW-Authenticate": "Basic"},
-        )
-    return credentials.username
+# Token store en memoria: {token: username}
+_sessions: dict[str, str] = {}
+
+from fastapi.responses import RedirectResponse
+from pydantic import BaseModel as _BaseModel
+
+def verify_session(request: Request) -> str:
+    """Verifica cookie de sesión. Redirige a /login si no es válida."""
+    token = request.cookies.get("qsession")
+    if not token or token not in _sessions:
+        raise HTTPException(status_code=302, headers={"Location": "/login"})
+    return _sessions[token]
+
+def verify_auth(credentials: HTTPBasicCredentials = Depends(HTTPBasic(auto_error=False)),
+                request: Request = None):
+    """Compatibilidad: acepta Basic Auth (para scripts) o cookie de sesión."""
+    # Primero intentar cookie
+    token = request.cookies.get("qsession") if request else None
+    if token and token in _sessions:
+        return _sessions[token]
+    # Fallback a Basic Auth
+    if credentials:
+        ok_u = secrets.compare_digest(credentials.username, WEB_USER)
+        ok_p = secrets.compare_digest(credentials.password, WEB_PASS)
+        if ok_u and ok_p:
+            return credentials.username
+    raise HTTPException(status_code=302, headers={"Location": "/login"})
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    # Si ya tiene sesión válida, redirigir al dashboard
+    token = request.cookies.get("qsession")
+    if token and token in _sessions:
+        return RedirectResponse("/")
+    return templates.TemplateResponse(request=request, name="login.html")
+
+@app.post("/api/login")
+@limiter.limit("10/minute")
+async def do_login(request: Request, payload: LoginRequest, response: Response):
+    ok_u = secrets.compare_digest(payload.username, WEB_USER)
+    ok_p = secrets.compare_digest(payload.password, WEB_PASS)
+    if not (ok_u and ok_p):
+        return {"status": "error", "message": "Credenciales incorrectas"}
+    token = secrets.token_hex(32)
+    _sessions[token] = payload.username
+    response.set_cookie(
+        key="qsession", value=token,
+        httponly=True, samesite="strict", max_age=86400  # 24h
+    )
+    return {"status": "ok", "username": payload.username}
+
+@app.post("/api/logout")
+async def do_logout(request: Request, response: Response):
+    token = request.cookies.get("qsession")
+    if token and token in _sessions:
+        del _sessions[token]
+    response.delete_cookie("qsession")
+    return RedirectResponse("/login", status_code=302)
 
 @app.get("/", response_class=HTMLResponse)
 @limiter.limit("60/minute")
-async def dashboard(request: Request, username: str = Depends(verify_auth)):
+async def dashboard(request: Request):
+    token = request.cookies.get("qsession")
+    if not token or token not in _sessions:
+        return RedirectResponse("/login")
     return templates.TemplateResponse(request=request, name="index.html")
 
 @app.get("/sw.js")

@@ -149,7 +149,7 @@ app_state = {
     "scan_mode":        "HYBRID",    # HYBRID = Bluechips + Sniper
     "bluechip_count":   0,           # Trades bluechip abiertos
     "sniper_count":     0,           # Trades sniper abiertos
-    "bot_active":       True,        # Agent Power Kill switch (Auto Run)
+    "bot_active":       False,       # Agent Power Kill switch (Auto Run)
     "consecutive_losses": 0,          # Circuit breaker counter
     "circuit_breaker_until": 0,       # timestamp hasta que se reactiva
     "brain_stats": {
@@ -190,34 +190,25 @@ def add_brain_event(msg, event_type="info"):
 async def engine_loop():
     # Loop principal (DB initialized in lifespan)
 
-    # Cargar balance de DB o usar default (ahora en USDC)
-    saved = db.load_balance(exchange.paper_balance_usd, default_gas=0.5)
-    app_state["balance_usd"] = saved["balance"]
-    app_state["balance_sol_gas"] = saved.get("balance_sol_gas", 0.5)
-    app_state["total_pnl"] = saved["total_pnl"]
-    app_state["win_count"] = saved["win_count"]
-    app_state["closed_count"] = saved["closed_count"]
-    exchange.paper_balance_usd = saved["balance"]
-    exchange.paper_balance_sol_gas = app_state["balance_sol_gas"]
-
-    # Cargar trades activos de DB
-    global_active = db.load_active_trades()
-    app_state["active_trades"] = global_active
-
+    # ── ARRANQUE EN FRÍO Y LIMPIEZA DB ──
+    db.wipe_all_data()
+    
+    app_state["balance_usd"] = 0.0
+    app_state["balance_sol_gas"] = 0.5
+    app_state["total_pnl"] = 0.0
+    app_state["win_count"] = 0
+    app_state["closed_count"] = 0
+    app_state["initial_balance_usd"] = 0.0
+    exchange.paper_balance_usd = 0.0
+    exchange.paper_balance_sol_gas = 0.5
+    
+    app_state["active_trades"] = []
+    
     # Obtener precio SOL (Para UI solamente)
     sol_usd = await exchange.get_sol_price_usd()
     app_state["sol_price_usd"] = sol_usd
-
-    # Ajuste de cuenta nueva (fresco) a $1000 netos
-    if saved["balance"] <= 2.0:  # Ajuste
-        exchange.paper_balance_usd = 1000.0
-        exchange.paper_balance_sol_gas = 0.5
-        
-    app_state["balance_usd"] = exchange.paper_balance_usd
-    app_state["balance_sol_gas"] = exchange.paper_balance_sol_gas
-    app_state["initial_balance_usd"] = exchange.paper_balance_usd
-
-    db.save_balance(app_state["balance_usd"], 0, 0, 0, app_state["balance_sol_gas"])
+    
+    db.save_balance(0.0, 0, 0, 0, 0.5)
 
     add_log(f"🧠 Agente Solana iniciado | SOL: ${sol_usd:.2f} | Balance: ${app_state['balance_usd']:.2f} | Gas: {app_state['balance_sol_gas']} SOL", "info")
     add_log(f"🎯 Modo: Live/Devnet | Start Equity: ${app_state['initial_balance_usd']:.2f}", "info")
@@ -1160,6 +1151,9 @@ class ConfigOverrideReq(BaseModel):
     key: str
     value: float
 
+class InjectCapitalReq(BaseModel):
+    capital: float
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 limiter = Limiter(key_func=get_auth_or_ip, default_limits=["200/minute"])
 app = FastAPI(lifespan=lifespan)
@@ -1763,6 +1757,33 @@ async def api_config_override(request: Request, payload: ConfigOverrideReq, user
             clone.params[key] = value
             return {"status": "ok", "message": f"[{clone.name}] {key} cambiado a {value}"}
         return {"status": "error", "message": "Agente no encontrado"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/inject_capital")
+@limiter.limit("5/minute")
+async def api_inject_capital(request: Request, payload: InjectCapitalReq, username: str = Depends(verify_auth)):
+    try:
+        capital = payload.capital
+        if capital <= 0:
+            return {"status": "error", "message": "El capital debe ser mayor a 0"}
+            
+        app_state["initial_balance_usd"] = capital
+        app_state["balance_usd"] = capital
+        exchange.paper_balance_usd = capital
+        db.save_balance(capital, 0, 0, 0, app_state.get("balance_sol_gas", 0.5))
+        
+        for cid, clone in clone_instances.items():
+            clone_state = db.load_clone_state(cid) or {
+                "clone_id": cid, "balance": capital, "total_pnl": 0, "win_count": 0,
+                "closed_count": 0, "cycle_number": 1, "cycle_start": datetime.now().isoformat(),
+                "cycle_days": 30, "synced_mints": [], "active_trades": []
+            }
+            clone_state["balance"] = capital
+            db.save_clone_state(**clone_state)
+            
+        app_state["bot_active"] = True
+        return {"status": "ok", "message": f"Capital inyectado: ${capital}. Motores encendidos."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 

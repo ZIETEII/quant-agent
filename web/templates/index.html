@@ -527,7 +527,44 @@ tbody td{padding:13px 14px;font-size:13px;white-space:nowrap}
 </style>
 </head>
 <body>
-
+<!-- COLD START MODAL -->
+<div id="cold-start-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(6,11,18,0.95); z-index:9999; backdrop-filter:blur(10px); flex-direction:column; justify-content:center; align-items:center;">
+    <div style="background:linear-gradient(145deg,rgba(18,24,38,0.95),rgba(11,14,25,0.98)); border:1px solid rgba(0,224,255,0.15); padding:40px; border-radius:16px; text-align:center; box-shadow:0 10px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05); width:90%; max-width:440px;">
+        <h2 style="color:#00e0ff; margin-top:0; font-weight:800; font-size:24px; letter-spacing: -0.5px;">❄️ COLD START INITIATED</h2>
+        <p style="color:var(--muted); font-size:13px; line-height:1.6; margin-bottom:24px;">La memoria central ha sido reseteada. Inyecta el capital líquido inicial para arrancar el entorno de trading.</p>
+        
+        <div style="background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:12px 18px; display:flex; align-items:center; margin-bottom:24px;">
+            <span style="color:#0ecb81; font-size:28px; font-weight:900; margin-right:12px; font-family:var(--mono);">$</span>
+            <input type="number" id="inject-capital-input" value="1000" style="background:transparent; border:none; outline:none; color:#fff; font-size:32px; font-family:var(--mono); font-weight:800; width:100%;" min="1" step="10">
+        </div>
+        
+        <button onclick="injectCapital()" style="background:linear-gradient(90deg, #0ecb81, #2ade7f); color:#000; font-weight:900; border:none; padding:16px 24px; width:100%; border-radius:10px; font-size:15px; cursor:pointer; text-transform:uppercase; letter-spacing:1px; transition:transform 0.2s; box-shadow: 0 4px 15px rgba(14,203,129,0.3);">
+            ⚡️ INYECTAR Y ENCENDER MOTORES
+        </button>
+    </div>
+</div>
+<script>
+async function injectCapital() {
+    const capital = parseFloat(document.getElementById('inject-capital-input').value);
+    if(isNaN(capital) || capital <= 0) return alert("Capital inválido");
+    
+    try {
+        const res = await fetch('/api/inject_capital', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ capital: capital })
+        });
+        const d = await res.json();
+        if(d.status === "ok") {
+            document.getElementById('cold-start-modal').style.display = 'none';
+        } else {
+            alert("Error: " + d.message);
+        }
+    } catch(e) {
+        alert("Error de red conectando al puente del bot.");
+    }
+}
+</script>
 <!-- TOP NAVBAR -->
 <nav id="navbar">
   <div class="nav-logo">
@@ -2667,6 +2704,16 @@ async function fetchState(){
         pDot.style.background = '#f04462';
         pDot.style.boxShadow = '0 0 8px #f04462';
         pTxt.innerText = '⏹ AGENTE APAGADO';
+    }
+
+    // Cold-Start Modal Check
+    const modal = document.getElementById('cold-start-modal');
+    if(modal) {
+        if((d.bot_active !== undefined && !d.bot_active) && ((d.balance ?? 0) <= 0.0)) {
+            modal.style.display = 'flex';
+        } else {
+            modal.style.display = 'none';
+        }
     }
 
     window.lastStateData = d;

@@ -158,6 +158,19 @@ def init_db():
         conn.commit()
     log.info(f"💾 Base de datos Supabase conectada con éxito.")
 
+def wipe_all_data():
+    """Borra duro todo el historial de Supabase reiniciando contadores y secuencias."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            tables = [
+                "trades", "daily_stats", "agent_params", 
+                "agent_state", "agent_insights", "clone_state", 
+                "clone_cycles", "equity_history"
+            ]
+            cur.execute(f"TRUNCATE {', '.join(tables)} RESTART IDENTITY CASCADE;")
+        conn.commit()
+    log.info("💥 Base de datos Supabase LIMPIADA (Wipe All Data) exitosamente.")
+
 @contextmanager
 def get_conn():
     conn = db_pool.getconn()

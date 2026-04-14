@@ -576,7 +576,7 @@ def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, user: str = Depends(verify_credentials)):
-    return templates.TemplateResponse(request, "index.html")
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.get("/api/state")

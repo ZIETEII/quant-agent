@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y \
 # Solo copio los requirimientos mínimos necesarios para correr el agente
 COPY requirements-test.txt .
 RUN pip install --no-cache-dir -r requirements-test.txt
-RUN pip install --no-cache-dir "fastapi[all]" uvicorn aiohttp requests "solana" "solders" "base58" jinja2 slowapi python-dotenv numpy pandas scikit-learn psycopg2-binary
+RUN pip install --no-cache-dir "fastapi[all]" uvicorn aiohttp requests "solana" "solders" "base58" jinja2 slowapi python-dotenv numpy pandas scikit-learn psycopg2-binary driftpy
 
 # Copio el resto del código
 COPY . .

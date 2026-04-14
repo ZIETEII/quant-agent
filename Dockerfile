@@ -6,30 +6,25 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Instalar dependencias del sistema necesarias para compilar librerías
-# cargo/rustc necesarios para solders/driftpy si no hay wheel pre-built
+# Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y \
     build-essential \
     pkg-config \
     libssl-dev \
     curl \
-    && curl https://sh.rustup.rs -sSf | sh -s -- -y \
     && rm -rf /var/lib/apt/lists/*
-
-ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Solo copio los requirimientos mínimos necesarios para correr el agente
 COPY requirements-test.txt .
 RUN pip install --no-cache-dir -r requirements-test.txt
 
-# Instalar dependencias core primero (tienen wheels pre-built)
+# Instalar dependencias Python
+# NOTA: driftpy se instala solo si se necesita live trading (lazy import en drift_client.py)
+# En paper mode funciona sin driftpy usando precios de CoinGecko/Binance
 RUN pip install --no-cache-dir \
     "fastapi[all]" uvicorn aiohttp requests jinja2 slowapi python-dotenv \
-    numpy pandas scikit-learn psycopg2-binary
-
-# Instalar Solana/Drift en paso separado (puede necesitar compilación Rust)
-RUN pip install --no-cache-dir "solana" "solders" "base58" "anchorpy"
-RUN pip install --no-cache-dir driftpy
+    numpy pandas scikit-learn psycopg2-binary \
+    "solana" "solders" "base58"
 
 # Copio el resto del código
 COPY . .
